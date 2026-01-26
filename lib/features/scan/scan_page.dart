@@ -49,7 +49,7 @@ class _ScanPageState extends State<ScanPage> {
     if (!result.ok) {
       _showSnackBar(result.message ?? 'Bilinmeyen hata.');
     } else {
-      _showSnackBar('QR kaydedildi.');
+      _showSnackBar(result.message ?? 'QR kaydedildi.');
     }
   }
 

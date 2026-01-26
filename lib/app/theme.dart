@@ -12,6 +12,13 @@ ThemeData buildQrTheme() {
       foregroundColor: colorScheme.onSurface,
       centerTitle: true,
     ),
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
+      backgroundColor: colorScheme.surface,
+      selectedItemColor: colorScheme.primary,
+      unselectedItemColor: colorScheme.onSurface.withOpacity(0.6),
+      showUnselectedLabels: true,
+      type: BottomNavigationBarType.fixed,
+    ),
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(),
     ),

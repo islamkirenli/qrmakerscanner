@@ -9,7 +9,7 @@ class QrActionResult {
   final bool ok;
   final String? message;
 
-  const QrActionResult.ok() : this._(true, null);
+  const QrActionResult.ok([String? message]) : this._(true, message);
   const QrActionResult.error(String message) : this._(false, message);
 }
 
@@ -19,11 +19,16 @@ class QrAppController extends ChangeNotifier {
   final ValueNotifier<int> tabIndexListenable;
   String? _lastScan;
   String? _lastGenerated;
+  String? _displayName;
+  String? _email;
   final List<QrRecord> _history = <QrRecord>[];
 
   int get tabIndex => tabIndexListenable.value;
   String? get lastScan => _lastScan;
   String? get lastGenerated => _lastGenerated;
+  bool get isSignedIn => _displayName != null;
+  String? get displayName => _displayName;
+  String? get email => _email;
   UnmodifiableListView<QrRecord> get history => UnmodifiableListView(_history);
 
   void setTabIndex(int value) {
@@ -39,6 +44,10 @@ class QrAppController extends ChangeNotifier {
       return const QrActionResult.error('Lütfen QR içeriği girin.');
     }
     _lastGenerated = text;
+    if (!isSignedIn) {
+      notifyListeners();
+      return const QrActionResult.ok('Giriş yapmadan geçmişe kaydedilmez.');
+    }
     _history.insert(
       0,
       QrRecord(
@@ -57,6 +66,10 @@ class QrAppController extends ChangeNotifier {
       return const QrActionResult.error('Taranan değer boş olamaz.');
     }
     _lastScan = text;
+    if (!isSignedIn) {
+      notifyListeners();
+      return const QrActionResult.ok('Giriş yapmadan geçmişe kaydedilmez.');
+    }
     _history.insert(
       0,
       QrRecord(
@@ -73,6 +86,33 @@ class QrAppController extends ChangeNotifier {
     if (_history.isEmpty) {
       return;
     }
+    _history.clear();
+    notifyListeners();
+  }
+
+  QrActionResult signIn({required String name, required String email}) {
+    final trimmedName = name.trim();
+    final trimmedEmail = email.trim();
+    if (trimmedName.isEmpty) {
+      return const QrActionResult.error('Ad soyad gerekli.');
+    }
+    if (!trimmedEmail.contains('@')) {
+      return const QrActionResult.error('Geçerli bir email girin.');
+    }
+    _displayName = trimmedName;
+    _email = trimmedEmail;
+    notifyListeners();
+    return const QrActionResult.ok();
+  }
+
+  void signOut() {
+    if (!isSignedIn) {
+      return;
+    }
+    _displayName = null;
+    _email = null;
+    _lastScan = null;
+    _lastGenerated = null;
     _history.clear();
     notifyListeners();
   }

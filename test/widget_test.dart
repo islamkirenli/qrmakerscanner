@@ -5,6 +5,14 @@ void main() {
   testWidgets('Generate flow adds item to history', (WidgetTester tester) async {
     await tester.pumpWidget(const QrApp());
 
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('loginName')), 'Ali Veli');
+    await tester.enterText(find.byKey(const ValueKey('loginEmail')), 'ali@example.com');
+    await tester.tap(find.byKey(const ValueKey('loginButton')));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
 

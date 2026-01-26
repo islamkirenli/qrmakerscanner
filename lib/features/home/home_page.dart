@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app/controller_scope.dart';
+import '../account/account_page.dart';
 import '../generate/generate_page.dart';
 import '../history/history_page.dart';
 import '../scan/scan_page.dart';
@@ -23,6 +24,7 @@ class QrHomePage extends StatelessWidget {
               ScanPage(),
               GeneratePage(),
               HistoryPage(),
+              AccountPage(),
             ],
           ),
           bottomNavigationBar: BottomNavigationBar(
@@ -40,6 +42,10 @@ class QrHomePage extends StatelessWidget {
               BottomNavigationBarItem(
                 icon: Icon(Icons.history),
                 label: 'Geçmiş',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                label: 'Profil',
               ),
             ],
           ),

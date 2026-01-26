@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../app/controller_scope.dart';
+import '../account/account_page.dart';
 import 'generate_category.dart';
 
 enum SocialPlatform {
@@ -83,7 +84,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       _showSnackBar(result.message ?? 'Bilinmeyen hata.');
       return;
     }
-    _showSnackBar('QR oluşturuldu.');
+    _showSnackBar(result.message ?? 'QR oluşturuldu.');
   }
 
   String? _buildPayload() {
@@ -184,6 +185,46 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   @override
   Widget build(BuildContext context) {
     final category = widget.category;
+    final controller = QrControllerScope.of(context);
+    final isLocked = !controller.isSignedIn &&
+        (category.type == GenerateCategoryType.document ||
+            category.type == GenerateCategoryType.image);
+    if (isLocked) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('${category.title} QR'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.lock_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Bu kategori giriş yapmadan kullanılamaz.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const AccountPage(),
+                    ),
+                  ),
+                  child: const Text('Giriş Yap'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         title: Text('${category.title} QR'),

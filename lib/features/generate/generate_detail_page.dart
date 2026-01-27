@@ -87,7 +87,10 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       return;
     }
     if (widget.category.type == GenerateCategoryType.text ||
-        widget.category.type == GenerateCategoryType.url) {
+        widget.category.type == GenerateCategoryType.url ||
+        widget.category.type == GenerateCategoryType.email ||
+        widget.category.type == GenerateCategoryType.vcard ||
+        widget.category.type == GenerateCategoryType.wifi) {
       setState(() => _generatedPayload = payload);
     }
     _showSnackBar(result.message ?? 'QR oluşturuldu.');
@@ -267,7 +270,10 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
             label: const Text('QR Oluştur'),
           ),
           if ((category.type == GenerateCategoryType.text ||
-                  category.type == GenerateCategoryType.url) &&
+                  category.type == GenerateCategoryType.url ||
+                  category.type == GenerateCategoryType.email ||
+                  category.type == GenerateCategoryType.vcard ||
+                  category.type == GenerateCategoryType.wifi) &&
               _generatedPayload != null) ...[
             const SizedBox(height: 24),
             Text(
@@ -325,6 +331,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       case GenerateCategoryType.email:
         return [
           TextField(
+            key: const ValueKey('emailInput'),
             controller: _emailController,
             decoration: const InputDecoration(
               labelText: 'Email',
@@ -335,6 +342,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('emailSubject'),
             controller: _subjectController,
             decoration: const InputDecoration(
               labelText: 'Konu (opsiyonel)',
@@ -343,6 +351,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('emailBody'),
             controller: _bodyController,
             decoration: const InputDecoration(
               labelText: 'Mesaj (opsiyonel)',
@@ -355,6 +364,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       case GenerateCategoryType.vcard:
         return [
           TextField(
+            key: const ValueKey('vcardName'),
             controller: _fullNameController,
             decoration: const InputDecoration(
               labelText: 'Ad Soyad',
@@ -363,6 +373,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('vcardCompany'),
             controller: _companyController,
             decoration: const InputDecoration(
               labelText: 'Şirket (opsiyonel)',
@@ -371,6 +382,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('vcardPhone'),
             controller: _phoneController,
             decoration: const InputDecoration(
               labelText: 'Telefon (opsiyonel)',
@@ -380,6 +392,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('vcardEmail'),
             controller: _vcardEmailController,
             decoration: const InputDecoration(
               labelText: 'Email (opsiyonel)',
@@ -392,6 +405,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       case GenerateCategoryType.wifi:
         return [
           TextField(
+            key: const ValueKey('wifiSsid'),
             controller: _ssidController,
             decoration: const InputDecoration(
               labelText: 'Wi-Fi adı (SSID)',
@@ -400,6 +414,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('wifiPassword'),
             controller: _passwordController,
             decoration: const InputDecoration(
               labelText: 'Şifre',
@@ -410,6 +425,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
+            key: const ValueKey('wifiSecurity'),
             value: _wifiSecurity,
             items: const [
               DropdownMenuItem(value: 'WPA', child: Text('WPA/WPA2')),

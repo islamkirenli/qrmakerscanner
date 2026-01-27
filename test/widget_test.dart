@@ -62,4 +62,58 @@ void main() {
 
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
   });
+
+  testWidgets('Email generate shows QR preview', (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp());
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Email'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('emailInput')), 'test@example.com');
+    await tester.enterText(find.byKey(const ValueKey('emailSubject')), 'Selam');
+    await tester.enterText(find.byKey(const ValueKey('emailBody')), 'Merhaba');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+  });
+
+  testWidgets('vCard generate shows QR preview', (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp());
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kişi Kartı'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('vcardName')), 'Ada Lovelace');
+    await tester.enterText(find.byKey(const ValueKey('vcardCompany')), 'Analytical');
+    await tester.enterText(find.byKey(const ValueKey('vcardPhone')), '+90 555 123 4567');
+    await tester.enterText(find.byKey(const ValueKey('vcardEmail')), 'ada@example.com');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+  });
+
+  testWidgets('Wi-Fi generate shows QR preview', (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp());
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Wi-Fi'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('wifiSsid')), 'OfficeWifi');
+    await tester.enterText(find.byKey(const ValueKey('wifiPassword')), 'secret123');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+  });
 }

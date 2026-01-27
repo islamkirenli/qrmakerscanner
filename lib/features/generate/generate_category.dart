@@ -3,13 +3,12 @@ import 'package:flutter/material.dart';
 enum GenerateCategoryType {
   text,
   url,
-  email,
-  vcard,
-  wifi,
-  social,
   document,
   image,
-  apps,
+  wifi,
+  vcard,
+  social,
+  email,
 }
 
 class GenerateCategoryInfo {
@@ -40,30 +39,6 @@ const List<GenerateCategoryInfo> generateCategories = [
     icon: Icons.link,
   ),
   GenerateCategoryInfo(
-    type: GenerateCategoryType.email,
-    title: 'Email',
-    subtitle: 'Mail gönderimi için QR.',
-    icon: Icons.email,
-  ),
-  GenerateCategoryInfo(
-    type: GenerateCategoryType.vcard,
-    title: 'vCard',
-    subtitle: 'Kişi kartı paylaşımı için QR.',
-    icon: Icons.contact_page,
-  ),
-  GenerateCategoryInfo(
-    type: GenerateCategoryType.wifi,
-    title: 'Wi-Fi',
-    subtitle: 'Kablosuz ağ paylaşımı için QR.',
-    icon: Icons.wifi,
-  ),
-  GenerateCategoryInfo(
-    type: GenerateCategoryType.social,
-    title: 'Social Media',
-    subtitle: 'Sosyal medya profili için QR.',
-    icon: Icons.public,
-  ),
-  GenerateCategoryInfo(
     type: GenerateCategoryType.document,
     title: 'Document',
     subtitle: 'Belge bağlantısı için QR.',
@@ -76,9 +51,27 @@ const List<GenerateCategoryInfo> generateCategories = [
     icon: Icons.image,
   ),
   GenerateCategoryInfo(
-    type: GenerateCategoryType.apps,
-    title: 'Apps',
-    subtitle: 'Uygulama bağlantısı için QR.',
-    icon: Icons.apps,
+    type: GenerateCategoryType.wifi,
+    title: 'Wi-Fi',
+    subtitle: 'Kablosuz ağ paylaşımı için QR.',
+    icon: Icons.wifi,
+  ),
+  GenerateCategoryInfo(
+    type: GenerateCategoryType.vcard,
+    title: 'vCard',
+    subtitle: 'Kişi kartı paylaşımı için QR.',
+    icon: Icons.contact_page,
+  ),
+  GenerateCategoryInfo(
+    type: GenerateCategoryType.social,
+    title: 'Social Media',
+    subtitle: 'Sosyal medya profili için QR.',
+    icon: Icons.public,
+  ),
+  GenerateCategoryInfo(
+    type: GenerateCategoryType.email,
+    title: 'Email',
+    subtitle: 'Mail gönderimi için QR.',
+    icon: Icons.email,
   ),
 ];

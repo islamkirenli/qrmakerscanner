@@ -181,7 +181,6 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         return '${_socialPlatform.baseUrl}$normalized';
       case GenerateCategoryType.document:
       case GenerateCategoryType.image:
-      case GenerateCategoryType.apps:
         final text = _textController.text.trim();
         if (text.isEmpty) {
           _showSnackBar('Bağlantı boş olamaz.');
@@ -487,7 +486,6 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         ];
       case GenerateCategoryType.document:
       case GenerateCategoryType.image:
-      case GenerateCategoryType.apps:
         return [
           TextField(
             controller: _textController,

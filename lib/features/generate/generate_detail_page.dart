@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../app/controller_scope.dart';
 import '../account/account_page.dart';
 import 'generate_category.dart';
@@ -40,6 +41,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   late final TextEditingController _passwordController;
   String _wifiSecurity = 'WPA';
   SocialPlatform _socialPlatform = SocialPlatform.instagram;
+  String? _generatedPayload;
 
   @override
   void initState() {
@@ -84,6 +86,10 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       _showSnackBar(result.message ?? 'Bilinmeyen hata.');
       return;
     }
+    if (widget.category.type == GenerateCategoryType.text ||
+        widget.category.type == GenerateCategoryType.url) {
+      setState(() => _generatedPayload = payload);
+    }
     _showSnackBar(result.message ?? 'QR oluşturuldu.');
   }
 
@@ -102,11 +108,12 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           _showSnackBar('URL boş olamaz.');
           return null;
         }
-        if (!text.startsWith('http://') && !text.startsWith('https://')) {
-          _showSnackBar('URL http:// veya https:// ile başlamalı.');
+        final normalizedUrl = _normalizeUrl(text);
+        if (normalizedUrl == null) {
+          _showSnackBar('Geçerli bir URL girin.');
           return null;
         }
-        return text;
+        return normalizedUrl;
       case GenerateCategoryType.email:
         final email = _emailController.text.trim();
         if (email.isEmpty) {
@@ -178,6 +185,24 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     }
   }
 
+  String? _normalizeUrl(String input) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) {
+      return null;
+    }
+    final candidate = trimmed.startsWith('http://') || trimmed.startsWith('https://')
+        ? trimmed
+        : 'https://$trimmed';
+    final uri = Uri.tryParse(candidate);
+    if (uri == null) {
+      return null;
+    }
+    if ((uri.scheme != 'http' && uri.scheme != 'https') || uri.host.isEmpty) {
+      return null;
+    }
+    return uri.toString();
+  }
+
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -241,6 +266,29 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
             icon: const Icon(Icons.qr_code_2),
             label: const Text('QR Oluştur'),
           ),
+          if ((category.type == GenerateCategoryType.text ||
+                  category.type == GenerateCategoryType.url) &&
+              _generatedPayload != null) ...[
+            const SizedBox(height: 24),
+            Text(
+              'Oluşturulan QR',
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: QrImageView(
+                key: const ValueKey('generatedQrPreview'),
+                data: _generatedPayload!,
+                size: 220,
+                errorStateBuilder: (context, error) => Text(
+                  'QR oluşturulamadı.',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

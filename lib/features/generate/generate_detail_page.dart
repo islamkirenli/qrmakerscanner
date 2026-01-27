@@ -90,7 +90,8 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         widget.category.type == GenerateCategoryType.url ||
         widget.category.type == GenerateCategoryType.email ||
         widget.category.type == GenerateCategoryType.vcard ||
-        widget.category.type == GenerateCategoryType.wifi) {
+        widget.category.type == GenerateCategoryType.wifi ||
+        widget.category.type == GenerateCategoryType.social) {
       setState(() => _generatedPayload = payload);
     }
     _showSnackBar(result.message ?? 'QR oluşturuldu.');
@@ -169,9 +170,15 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           return null;
         }
         if (input.startsWith('http://') || input.startsWith('https://')) {
-          return input;
+          _showSnackBar('Lütfen kullanıcı adı girin.');
+          return null;
         }
-        return '${_socialPlatform.baseUrl}$input';
+        final normalized = input.startsWith('@') ? input.substring(1) : input;
+        if (normalized.isEmpty) {
+          _showSnackBar('Kullanıcı adı boş olamaz.');
+          return null;
+        }
+        return '${_socialPlatform.baseUrl}$normalized';
       case GenerateCategoryType.document:
       case GenerateCategoryType.image:
       case GenerateCategoryType.apps:
@@ -273,7 +280,8 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
                   category.type == GenerateCategoryType.url ||
                   category.type == GenerateCategoryType.email ||
                   category.type == GenerateCategoryType.vcard ||
-                  category.type == GenerateCategoryType.wifi) &&
+                  category.type == GenerateCategoryType.wifi ||
+                  category.type == GenerateCategoryType.social) &&
               _generatedPayload != null) ...[
             const SizedBox(height: 24),
             Text(
@@ -446,6 +454,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       case GenerateCategoryType.social:
         return [
           DropdownButtonFormField<SocialPlatform>(
+            key: const ValueKey('socialPlatform'),
             value: _socialPlatform,
             items: SocialPlatform.values
                 .map(
@@ -467,10 +476,10 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: const ValueKey('socialUsername'),
             controller: _socialController,
             decoration: const InputDecoration(
-              labelText: 'Kullanıcı adı veya URL',
-              hintText: 'ornek_kullanici veya https://...',
+              labelText: 'Kullanıcı adı',
             ),
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _handleGenerate(),

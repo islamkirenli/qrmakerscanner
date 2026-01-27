@@ -116,4 +116,20 @@ void main() {
 
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
   });
+
+  testWidgets('Social generate shows QR preview', (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp());
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sosyal Medya'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('socialUsername')), 'flutterdev');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+  });
 }

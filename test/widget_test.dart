@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_maker_scanner/app/app.dart';
+import 'package:qr_maker_scanner/features/scan/scan_page.dart';
 
 void main() {
   testWidgets('Generate flow adds item to history', (WidgetTester tester) async {
@@ -131,5 +132,33 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+  });
+
+  testWidgets('Scan page shows torch button', (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp());
+
+    expect(find.byKey(const ValueKey('scanTorchButton')), findsOneWidget);
+  });
+
+  testWidgets('Scan page routes URL payload', (WidgetTester tester) async {
+    final debugPayload = ValueNotifier<String?>(null);
+    Uri? launchedUri;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ScanPage(
+          debugPayloadListenable: debugPayload,
+          launchUriOverride: (uri) async {
+            launchedUri = uri;
+            return true;
+          },
+        ),
+      ),
+    );
+
+    debugPayload.value = 'https://example.com';
+    await tester.pumpAndSettle();
+
+    expect(launchedUri?.host, 'example.com');
   });
 }

@@ -14,10 +14,14 @@ class QrHomePage extends StatelessWidget {
     return ValueListenableBuilder<int>(
       valueListenable: controller.tabIndexListenable,
       builder: (context, index, _) {
+        final isScanTab = index == 0;
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('QR Maker & Scanner'),
-          ),
+          backgroundColor: isScanTab ? Colors.black : null,
+          appBar: isScanTab
+              ? null
+              : AppBar(
+                  title: const Text('QR Maker & Scanner'),
+                ),
           body: IndexedStack(
             index: index,
             children: const [

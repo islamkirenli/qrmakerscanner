@@ -95,7 +95,6 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         widget.category.type == GenerateCategoryType.social) {
       setState(() => _generatedPayload = payload);
     }
-    _showSnackBar(result.message ?? 'QR oluşturuldu.');
   }
 
   String? _buildPayload() {
@@ -267,8 +266,6 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(category.subtitle),
-          const SizedBox(height: 16),
           ..._buildForm(category.type),
           const SizedBox(height: 16),
           FilledButton.icon(
@@ -302,37 +299,35 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
                 ),
               ),
             ),
-            if (category.type == GenerateCategoryType.text) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      key: const ValueKey('qrDownloadButton'),
-                      onPressed: () {},
-                      icon: const Icon(Icons.download),
-                      label: const Text('İndir'),
-                    ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('qrDownloadButton'),
+                    onPressed: () {},
+                    icon: const Icon(Icons.download),
+                    label: const Text('İndir'),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      key: const ValueKey('qrSaveButton'),
-                      onPressed: () {},
-                      icon: const Icon(Icons.bookmark_border),
-                      label: const Text('Kaydet'),
-                    ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('qrSaveButton'),
+                    onPressed: () {},
+                    icon: const Icon(Icons.bookmark_border),
+                    label: const Text('Kaydet'),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                key: const ValueKey('qrCustomizeButton'),
-                onPressed: () {},
-                icon: const Icon(Icons.tune),
-                label: const Text('Özelleştir'),
-              ),
-            ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              key: const ValueKey('qrCustomizeButton'),
+              onPressed: () {},
+              icon: const Icon(Icons.tune),
+              label: const Text('Özelleştir'),
+            ),
           ],
         ],
       ),

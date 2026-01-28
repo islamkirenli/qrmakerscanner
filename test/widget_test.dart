@@ -4,14 +4,14 @@ import 'package:qr_maker_scanner/features/scan/scan_page.dart';
 
 void main() {
   testWidgets('Generate flow adds item to history', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byKey(const ValueKey('loginName')), 'Ali Veli');
-    await tester.enterText(find.byKey(const ValueKey('loginEmail')), 'ali@example.com');
-    await tester.tap(find.byKey(const ValueKey('loginButton')));
+    await tester.enterText(find.byKey(const ValueKey('authEmail')), 'ali@example.com');
+    await tester.enterText(find.byKey(const ValueKey('authPassword')), 'password123');
+    await tester.tap(find.byKey(const ValueKey('authSubmit')));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Oluştur'));
@@ -33,7 +33,7 @@ void main() {
   });
 
   testWidgets('URL generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -49,7 +49,7 @@ void main() {
   });
 
   testWidgets('URL without scheme still generates QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -65,7 +65,7 @@ void main() {
   });
 
   testWidgets('Email generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -83,12 +83,12 @@ void main() {
   });
 
   testWidgets('vCard generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Kişi Kartı'));
+    await tester.tap(find.text('vCard'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const ValueKey('vcardName')), 'Ada Lovelace');
@@ -102,7 +102,7 @@ void main() {
   });
 
   testWidgets('Wi-Fi generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -119,12 +119,12 @@ void main() {
   });
 
   testWidgets('Social generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Sosyal Medya'));
+    await tester.tap(find.text('Social Media'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byKey(const ValueKey('socialUsername')), 'flutterdev');
@@ -135,7 +135,7 @@ void main() {
   });
 
   testWidgets('Scan page shows torch button', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp());
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
 
     expect(find.byKey(const ValueKey('scanTorchButton')), findsOneWidget);
   });
@@ -160,5 +160,19 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(launchedUri?.host, 'example.com');
+  });
+
+  testWidgets('Auth sign in shows signed-in state', (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('authEmail')), 'user@example.com');
+    await tester.enterText(find.byKey(const ValueKey('authPassword')), 'password123');
+    await tester.tap(find.byKey(const ValueKey('authSubmit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('user@example.com'), findsOneWidget);
   });
 }

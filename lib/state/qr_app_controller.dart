@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
+import 'auth_service.dart';
 import '../models/qr_record.dart';
 
 class QrActionResult {
@@ -14,21 +16,28 @@ class QrActionResult {
 }
 
 class QrAppController extends ChangeNotifier {
-  QrAppController() : tabIndexListenable = ValueNotifier<int>(0);
+  QrAppController({required AuthService authService})
+      : _authService = authService,
+        tabIndexListenable = ValueNotifier<int>(0) {
+    _currentUser = _authService.currentUser;
+    _syncUser(_currentUser);
+    _authSubscription = _authService.onAuthStateChanged.listen(_syncUser);
+  }
 
   final ValueNotifier<int> tabIndexListenable;
+  final AuthService _authService;
+  late final StreamSubscription<AuthUser?> _authSubscription;
   String? _lastScan;
   String? _lastGenerated;
-  String? _displayName;
-  String? _email;
+  AuthUser? _currentUser;
   final List<QrRecord> _history = <QrRecord>[];
 
   int get tabIndex => tabIndexListenable.value;
   String? get lastScan => _lastScan;
   String? get lastGenerated => _lastGenerated;
-  bool get isSignedIn => _displayName != null;
-  String? get displayName => _displayName;
-  String? get email => _email;
+  bool get isSignedIn => _currentUser != null;
+  String? get displayName => _currentUser?.displayName ?? _currentUser?.email;
+  String? get email => _currentUser?.email;
   UnmodifiableListView<QrRecord> get history => UnmodifiableListView(_history);
 
   void setTabIndex(int value) {
@@ -90,35 +99,70 @@ class QrAppController extends ChangeNotifier {
     notifyListeners();
   }
 
-  QrActionResult signIn({required String name, required String email}) {
-    final trimmedName = name.trim();
+  Future<AuthResult> signInWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
     final trimmedEmail = email.trim();
-    if (trimmedName.isEmpty) {
-      return const QrActionResult.error('Ad soyad gerekli.');
+    if (trimmedEmail.isEmpty) {
+      return const AuthResult.error('Email gerekli.');
     }
     if (!trimmedEmail.contains('@')) {
-      return const QrActionResult.error('Geçerli bir email girin.');
+      return const AuthResult.error('Geçerli bir email girin.');
     }
-    _displayName = trimmedName;
-    _email = trimmedEmail;
-    notifyListeners();
-    return const QrActionResult.ok();
+    if (password.trim().isEmpty) {
+      return const AuthResult.error('Şifre gerekli.');
+    }
+    return _authService.signInWithEmailPassword(
+      email: trimmedEmail,
+      password: password,
+    );
   }
 
-  void signOut() {
+  Future<AuthResult> signUpWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    final trimmedEmail = email.trim();
+    if (trimmedEmail.isEmpty) {
+      return const AuthResult.error('Email gerekli.');
+    }
+    if (!trimmedEmail.contains('@')) {
+      return const AuthResult.error('Geçerli bir email girin.');
+    }
+    if (password.trim().isEmpty) {
+      return const AuthResult.error('Şifre gerekli.');
+    }
+    if (password.trim().length < 6) {
+      return const AuthResult.error('Şifre en az 6 karakter olmalı.');
+    }
+    return _authService.signUpWithEmailPassword(
+      email: trimmedEmail,
+      password: password,
+    );
+  }
+
+  Future<void> signOut() async {
     if (!isSignedIn) {
       return;
     }
-    _displayName = null;
-    _email = null;
-    _lastScan = null;
-    _lastGenerated = null;
-    _history.clear();
+    await _authService.signOut();
+  }
+
+  void _syncUser(AuthUser? user) {
+    final wasSignedIn = _currentUser != null;
+    _currentUser = user;
+    if (user == null && wasSignedIn) {
+      _lastScan = null;
+      _lastGenerated = null;
+      _history.clear();
+    }
     notifyListeners();
   }
 
   @override
   void dispose() {
+    _authSubscription.cancel();
     tabIndexListenable.dispose();
     super.dispose();
   }

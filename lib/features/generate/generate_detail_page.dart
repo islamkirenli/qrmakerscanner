@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../app/controller_scope.dart';
 import '../account/account_page.dart';
@@ -301,6 +302,37 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
                 ),
               ),
             ),
+            if (category.type == GenerateCategoryType.text) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('qrDownloadButton'),
+                      onPressed: () {},
+                      icon: const Icon(Icons.download),
+                      label: const Text('İndir'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('qrSaveButton'),
+                      onPressed: () {},
+                      icon: const Icon(Icons.bookmark_border),
+                      label: const Text('Kaydet'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                key: const ValueKey('qrCustomizeButton'),
+                onPressed: () {},
+                icon: const Icon(Icons.tune),
+                label: const Text('Özelleştir'),
+              ),
+            ],
           ],
         ],
       ),
@@ -318,6 +350,19 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
               hintText: 'Örn: Merhaba QR',
             ),
             maxLines: 3,
+            maxLength: 500,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+            buildCounter: (
+              context, {
+              required currentLength,
+              required isFocused,
+              required maxLength,
+            }) {
+              return Align(
+                alignment: Alignment.centerRight,
+                child: Text('$currentLength/$maxLength'),
+              );
+            },
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _handleGenerate(),
           ),

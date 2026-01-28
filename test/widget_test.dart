@@ -175,4 +175,40 @@ void main() {
 
     expect(find.text('user@example.com'), findsOneWidget);
   });
+
+  testWidgets('Text input shows character counter and enforces max length',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Metin'));
+    await tester.pumpAndSettle();
+
+    final longText = List.filled(600, 'a').join();
+    await tester.enterText(find.byType(EditableText), longText);
+    await tester.pumpAndSettle();
+
+    expect(find.text('500/500'), findsOneWidget);
+  });
+
+  testWidgets('Text QR shows action buttons after generation',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Metin'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(EditableText), 'Merhaba QR');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('qrDownloadButton')), findsOneWidget);
+    expect(find.byKey(const ValueKey('qrSaveButton')), findsOneWidget);
+    expect(find.byKey(const ValueKey('qrCustomizeButton')), findsOneWidget);
+  });
 }

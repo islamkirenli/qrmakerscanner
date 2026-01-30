@@ -42,6 +42,9 @@ class QrAppController extends ChangeNotifier {
   List<SavedQrRecord> _savedHistory = <SavedQrRecord>[];
   bool _isHistoryLoading = false;
   String? _historyError;
+  bool _isSelectionMode = false;
+  bool _isDeleting = false;
+  final Set<String> _selectedIds = <String>{};
 
   int get tabIndex => tabIndexListenable.value;
   String? get lastScan => _lastScan;
@@ -54,6 +57,11 @@ class QrAppController extends ChangeNotifier {
       UnmodifiableListView(_savedHistory);
   bool get isHistoryLoading => _isHistoryLoading;
   String? get historyError => _historyError;
+  bool get isSelectionMode => _isSelectionMode;
+  bool get isDeleting => _isDeleting;
+  int get selectedCount => _selectedIds.length;
+
+  bool isSelected(String id) => _selectedIds.contains(id);
 
   void setTabIndex(int value) {
     if (value == tabIndexListenable.value) {
@@ -194,6 +202,9 @@ class QrAppController extends ChangeNotifier {
       _savedHistory = <SavedQrRecord>[];
       _isHistoryLoading = false;
       _historyError = null;
+      _isSelectionMode = false;
+      _isDeleting = false;
+      _selectedIds.clear();
     }
     if (user != null) {
       _startHistorySync(user);
@@ -206,10 +217,17 @@ class QrAppController extends ChangeNotifier {
     _isHistoryLoading = true;
     _historyError = null;
     _savedHistory = <SavedQrRecord>[];
+    _isSelectionMode = false;
+    _isDeleting = false;
+    _selectedIds.clear();
     _historySubscription = _storageService
         .watchSavedQrs(userId: user.id)
         .listen((items) {
       _savedHistory = items;
+      if (_selectedIds.isNotEmpty) {
+        final ids = items.map((item) => item.id).toSet();
+        _selectedIds.removeWhere((id) => !ids.contains(id));
+      }
       _isHistoryLoading = false;
       _historyError = null;
       notifyListeners();
@@ -229,6 +247,56 @@ class QrAppController extends ChangeNotifier {
     }
     _startHistorySync(user);
     notifyListeners();
+  }
+
+  void toggleSelectionMode() {
+    _isSelectionMode = !_isSelectionMode;
+    if (!_isSelectionMode) {
+      _selectedIds.clear();
+    }
+    notifyListeners();
+  }
+
+  void toggleSelection(String id) {
+    if (!_isSelectionMode) {
+      return;
+    }
+    if (_selectedIds.contains(id)) {
+      _selectedIds.remove(id);
+    } else {
+      _selectedIds.add(id);
+    }
+    notifyListeners();
+  }
+
+  void clearSelection() {
+    if (_selectedIds.isEmpty) {
+      return;
+    }
+    _selectedIds.clear();
+    notifyListeners();
+  }
+
+  Future<DeleteResult> deleteSelected() async {
+    if (_currentUser == null) {
+      return const DeleteResult.error('Giriş yapmalısın.');
+    }
+    if (_selectedIds.isEmpty) {
+      return const DeleteResult.error('Silmek için seçim yapmalısın.');
+    }
+    _isDeleting = true;
+    notifyListeners();
+    final items = _savedHistory
+        .where((item) => _selectedIds.contains(item.id))
+        .toList(growable: false);
+    final result = await _storageService.deleteQrs(items: items);
+    _isDeleting = false;
+    if (result.ok) {
+      _isSelectionMode = false;
+      _selectedIds.clear();
+    }
+    notifyListeners();
+    return result;
   }
 
   @override

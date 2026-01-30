@@ -49,6 +49,55 @@ void main() {
     expect(find.byKey(const ValueKey('historyQrDownloadButton')), findsOneWidget);
   });
 
+  testWidgets('History selection deletes saved QR',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    final storage = FakeQrStorageService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+        storageServiceOverride: storage,
+      ),
+    );
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Metin'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(EditableText), 'Merhaba QR');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('qrSaveButton')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('saveQrTitle')), 'Favori QR');
+    await tester.tap(find.byKey(const ValueKey('saveQrSubmit')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Geçmiş'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('historySelectToggle')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Favori QR'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sil'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Favori QR'), findsNothing);
+  });
+
   testWidgets('URL generate shows QR preview', (WidgetTester tester) async {
     await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 

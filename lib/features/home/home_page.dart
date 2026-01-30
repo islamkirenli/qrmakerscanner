@@ -21,6 +21,15 @@ class QrHomePage extends StatelessWidget {
               ? null
               : AppBar(
                   title: const Text('QR Maker & Scanner'),
+                  actions: [
+                    if (index == 2)
+                      IconButton(
+                        key: const ValueKey('historySelectToggle'),
+                        onPressed: controller.toggleSelectionMode,
+                        icon: const Icon(Icons.delete_outline),
+                        tooltip: 'Seç ve sil',
+                      ),
+                  ],
                 ),
           body: IndexedStack(
             index: index,

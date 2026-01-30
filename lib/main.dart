@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'app/app.dart';
-import 'config/supabase_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final isConfigured = SupabaseConfig.isConfigured;
-  if (isConfigured) {
-    await Supabase.initialize(
-      url: SupabaseConfig.url,
-      anonKey: SupabaseConfig.anonKey,
-    );
+  var isFirebaseReady = false;
+  try {
+    await Firebase.initializeApp();
+    isFirebaseReady = true;
+  } catch (_) {
+    try {
+      Firebase.app();
+      isFirebaseReady = true;
+    } catch (_) {
+      isFirebaseReady = false;
+    }
   }
-  runApp(QrApp(isSupabaseReady: isConfigured));
+
+  runApp(
+    QrApp(
+      isFirebaseReady: isFirebaseReady,
+    ),
+  );
 }

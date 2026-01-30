@@ -54,7 +54,7 @@ class _AccountPageState extends State<AccountPage> {
       return;
     }
     if (isLoginMode) {
-      Navigator.of(context).pop();
+      controller.setTabIndex(0);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message ?? 'Kayıt başarılı.')),

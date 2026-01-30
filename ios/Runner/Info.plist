@@ -47,16 +47,5 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>QR kod taramak için kamera erişimi gerekir.</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLName</key>
-			<string>com.qrmakerscanner</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.qrmakerscanner</string>
-			</array>
-		</dict>
-	</array>
 </dict>
 </plist>

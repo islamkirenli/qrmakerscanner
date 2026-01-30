@@ -1,7 +1,6 @@
 import 'dart:async';
 
-import 'package:supabase_flutter/supabase_flutter.dart';
-import '../config/supabase_config.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AuthUser {
   const AuthUser({
@@ -44,17 +43,17 @@ abstract class AuthService {
   void dispose();
 }
 
-class SupabaseAuthService implements AuthService {
-  SupabaseAuthService(this._client);
+class FirebaseAuthService implements AuthService {
+  FirebaseAuthService(this._auth);
 
-  final SupabaseClient _client;
+  final FirebaseAuth _auth;
 
   @override
-  AuthUser? get currentUser => _mapUser(_client.auth.currentUser);
+  AuthUser? get currentUser => _mapUser(_auth.currentUser);
 
   @override
   Stream<AuthUser?> get onAuthStateChanged =>
-      _client.auth.onAuthStateChange.map((data) => _mapUser(data.session?.user));
+      _auth.authStateChanges().map(_mapUser);
 
   @override
   Future<AuthResult> signInWithEmailPassword({
@@ -62,13 +61,13 @@ class SupabaseAuthService implements AuthService {
     required String password,
   }) async {
     try {
-      await _client.auth.signInWithPassword(
+      await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
       return const AuthResult.ok();
-    } on AuthException catch (error) {
-      return AuthResult.error(error.message);
+    } on FirebaseAuthException catch (error) {
+      return AuthResult.error(error.message ?? 'Giriş sırasında hata oluştu.');
     } catch (_) {
       return const AuthResult.error('Giriş sırasında hata oluştu.');
     }
@@ -80,14 +79,14 @@ class SupabaseAuthService implements AuthService {
     required String password,
   }) async {
     try {
-      await _client.auth.signUp(
+      final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
-        emailRedirectTo: SupabaseConfig.emailRedirectUrl,
       );
+      await result.user?.sendEmailVerification();
       return const AuthResult.ok('Kayıt başarılı. Email doğrulamasını kontrol et.');
-    } on AuthException catch (error) {
-      return AuthResult.error(error.message);
+    } on FirebaseAuthException catch (error) {
+      return AuthResult.error(error.message ?? 'Kayıt sırasında hata oluştu.');
     } catch (_) {
       return const AuthResult.error('Kayıt sırasında hata oluştu.');
     }
@@ -95,7 +94,7 @@ class SupabaseAuthService implements AuthService {
 
   @override
   Future<void> signOut() async {
-    await _client.auth.signOut();
+    await _auth.signOut();
   }
 
   @override
@@ -105,15 +104,10 @@ class SupabaseAuthService implements AuthService {
     if (user == null) {
       return null;
     }
-    final metadata = user.userMetadata;
-    String? displayName;
-    if (metadata is Map<String, dynamic>) {
-      displayName = metadata['full_name'] as String?;
-    }
     return AuthUser(
-      id: user.id,
+      id: user.uid,
       email: user.email,
-      displayName: displayName,
+      displayName: user.displayName,
     );
   }
 }
@@ -133,7 +127,7 @@ class DisabledAuthService implements AuthService {
     required String email,
     required String password,
   }) async {
-    return const AuthResult.error('Supabase yapılandırılmadı.');
+    return const AuthResult.error('Firebase yapılandırılmadı.');
   }
 
   @override
@@ -141,7 +135,7 @@ class DisabledAuthService implements AuthService {
     required String email,
     required String password,
   }) async {
-    return const AuthResult.error('Supabase yapılandırılmadı.');
+    return const AuthResult.error('Firebase yapılandırılmadı.');
   }
 
   @override

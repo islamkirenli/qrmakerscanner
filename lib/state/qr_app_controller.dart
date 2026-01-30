@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
+import 'qr_storage_service.dart';
 import '../models/qr_record.dart';
 
 class QrActionResult {
@@ -16,8 +18,11 @@ class QrActionResult {
 }
 
 class QrAppController extends ChangeNotifier {
-  QrAppController({required AuthService authService})
-      : _authService = authService,
+  QrAppController({
+    required AuthService authService,
+    required QrStorageService storageService,
+  })  : _authService = authService,
+        _storageService = storageService,
         tabIndexListenable = ValueNotifier<int>(0) {
     _currentUser = _authService.currentUser;
     _syncUser(_currentUser);
@@ -26,6 +31,7 @@ class QrAppController extends ChangeNotifier {
 
   final ValueNotifier<int> tabIndexListenable;
   final AuthService _authService;
+  final QrStorageService _storageService;
   late final StreamSubscription<AuthUser?> _authSubscription;
   String? _lastScan;
   String? _lastGenerated;
@@ -147,6 +153,24 @@ class QrAppController extends ChangeNotifier {
       return;
     }
     await _authService.signOut();
+  }
+
+  Future<SaveResult> saveGenerated({
+    required String title,
+    required String payload,
+    required String category,
+    required Uint8List imageBytes,
+  }) {
+    final trimmedTitle = title.trim();
+    if (trimmedTitle.isEmpty) {
+      return Future.value(const SaveResult.error('Başlık gerekli.'));
+    }
+    return _storageService.saveQr(
+      title: trimmedTitle,
+      payload: payload,
+      category: category,
+      imageBytes: imageBytes,
+    );
   }
 
   void _syncUser(AuthUser? user) {

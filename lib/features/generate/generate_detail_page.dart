@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -216,6 +219,19 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _showSaveDialog(String payload) async {
+    if (!mounted) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (_) => _SaveQrDialog(
+        payload: payload,
+        categoryTitle: widget.category.title,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final category = widget.category;
@@ -314,7 +330,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
                 Expanded(
                   child: OutlinedButton.icon(
                     key: const ValueKey('qrSaveButton'),
-                    onPressed: () {},
+                    onPressed: () => _showSaveDialog(_generatedPayload!),
                     icon: const Icon(Icons.bookmark_border),
                     label: const Text('Kaydet'),
                   ),
@@ -538,6 +554,152 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
             onSubmitted: (_) => _handleGenerate(),
           ),
         ];
+    }
+  }
+}
+
+class _SaveQrDialog extends StatefulWidget {
+  const _SaveQrDialog({
+    required this.payload,
+    required this.categoryTitle,
+  });
+
+  final String payload;
+  final String categoryTitle;
+
+  @override
+  State<_SaveQrDialog> createState() => _SaveQrDialogState();
+}
+
+class _SaveQrDialogState extends State<_SaveQrDialog> {
+  late final TextEditingController _titleController;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleSave() async {
+    final controller = QrControllerScope.of(context);
+    setState(() => _isSaving = true);
+    final imageBytes = await _buildQrPngBytes();
+    if (!mounted) {
+      return;
+    }
+    if (imageBytes == null) {
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('QR görseli oluşturulamadı.')),
+      );
+      return;
+    }
+    final result = await controller.saveGenerated(
+      title: _titleController.text,
+      payload: widget.payload,
+      category: widget.categoryTitle,
+      imageBytes: imageBytes,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() => _isSaving = false);
+    if (!result.ok) {
+      final message = result.message ?? 'Kaydetme başarısız.';
+      debugPrint('Save QR failed: $message');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+      return;
+    }
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Kaydedildi.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = QrControllerScope.of(context);
+    final userEmail = controller.email;
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'QR Kaydet',
+                  style: Theme.of(context).textTheme.titleLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  key: const ValueKey('saveQrTitle'),
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Başlık',
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _handleSave(),
+                ),
+                const SizedBox(height: 16),
+                Center(
+                  child: QrImageView(
+                    data: widget.payload,
+                    size: 160,
+                  ),
+                ),
+                if (userEmail != null) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Kaydeden: $userEmail',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                const SizedBox(height: 20),
+                FilledButton(
+                  key: const ValueKey('saveQrSubmit'),
+                  onPressed: _isSaving ? null : _handleSave,
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Kaydet'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List?> _buildQrPngBytes() async {
+    try {
+      final painter = QrPainter(
+        data: widget.payload,
+        version: QrVersions.auto,
+        gapless: true,
+      );
+      final image = await painter.toImage(512);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
+    } catch (_) {
+      return null;
     }
   }
 }

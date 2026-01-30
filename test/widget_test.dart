@@ -1,10 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_maker_scanner/app/app.dart';
 import 'package:qr_maker_scanner/features/scan/scan_page.dart';
+import 'package:qr_maker_scanner/state/auth_service.dart';
+import 'package:qr_maker_scanner/state/qr_storage_service.dart';
 
 void main() {
   testWidgets('Generate flow adds item to history', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
@@ -33,7 +35,7 @@ void main() {
   });
 
   testWidgets('URL generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -49,7 +51,7 @@ void main() {
   });
 
   testWidgets('URL without scheme still generates QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -65,7 +67,7 @@ void main() {
   });
 
   testWidgets('Email generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -83,7 +85,7 @@ void main() {
   });
 
   testWidgets('vCard generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -102,7 +104,7 @@ void main() {
   });
 
   testWidgets('Wi-Fi generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -119,7 +121,7 @@ void main() {
   });
 
   testWidgets('Social generate shows QR preview', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -135,7 +137,7 @@ void main() {
   });
 
   testWidgets('Scan page shows torch button', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     expect(find.byKey(const ValueKey('scanTorchButton')), findsOneWidget);
   });
@@ -163,7 +165,7 @@ void main() {
   });
 
   testWidgets('Auth sign in shows signed-in state', (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Profil'));
     await tester.pumpAndSettle();
@@ -178,7 +180,7 @@ void main() {
 
   testWidgets('Text input shows character counter and enforces max length',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -195,7 +197,7 @@ void main() {
 
   testWidgets('Text QR shows action buttons after generation',
       (WidgetTester tester) async {
-    await tester.pumpWidget(const QrApp(isSupabaseReady: false));
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
     await tester.pumpAndSettle();
@@ -210,5 +212,45 @@ void main() {
     expect(find.byKey(const ValueKey('qrDownloadButton')), findsOneWidget);
     expect(find.byKey(const ValueKey('qrSaveButton')), findsOneWidget);
     expect(find.byKey(const ValueKey('qrCustomizeButton')), findsOneWidget);
+  });
+
+  testWidgets('Save dialog stores QR data', (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    final storage = FakeQrStorageService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+        storageServiceOverride: storage,
+      ),
+    );
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Metin'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(EditableText), 'Merhaba QR');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('qrSaveButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Kaydeden: user@example.com'), findsOneWidget);
+
+    await tester.enterText(find.byKey(const ValueKey('saveQrTitle')), 'Favori QR');
+    await tester.tap(find.byKey(const ValueKey('saveQrSubmit')));
+    await tester.pumpAndSettle();
+
+    expect(storage.lastTitle, 'Favori QR');
+    expect(storage.lastPayload, 'Merhaba QR');
+    expect(storage.lastImageBytes, isNotNull);
   });
 }

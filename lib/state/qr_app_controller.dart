@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
 import 'qr_storage_service.dart';
 import '../models/qr_record.dart';
+import '../models/saved_qr_record.dart';
 
 class QrActionResult {
   const QrActionResult._(this.ok, this.message);
@@ -33,10 +34,14 @@ class QrAppController extends ChangeNotifier {
   final AuthService _authService;
   final QrStorageService _storageService;
   late final StreamSubscription<AuthUser?> _authSubscription;
+  StreamSubscription<List<SavedQrRecord>>? _historySubscription;
   String? _lastScan;
   String? _lastGenerated;
   AuthUser? _currentUser;
   final List<QrRecord> _history = <QrRecord>[];
+  List<SavedQrRecord> _savedHistory = <SavedQrRecord>[];
+  bool _isHistoryLoading = false;
+  String? _historyError;
 
   int get tabIndex => tabIndexListenable.value;
   String? get lastScan => _lastScan;
@@ -45,6 +50,10 @@ class QrAppController extends ChangeNotifier {
   String? get displayName => _currentUser?.displayName ?? _currentUser?.email;
   String? get email => _currentUser?.email;
   UnmodifiableListView<QrRecord> get history => UnmodifiableListView(_history);
+  UnmodifiableListView<SavedQrRecord> get savedHistory =>
+      UnmodifiableListView(_savedHistory);
+  bool get isHistoryLoading => _isHistoryLoading;
+  String? get historyError => _historyError;
 
   void setTabIndex(int value) {
     if (value == tabIndexListenable.value) {
@@ -180,13 +189,52 @@ class QrAppController extends ChangeNotifier {
       _lastScan = null;
       _lastGenerated = null;
       _history.clear();
+      _historySubscription?.cancel();
+      _historySubscription = null;
+      _savedHistory = <SavedQrRecord>[];
+      _isHistoryLoading = false;
+      _historyError = null;
     }
+    if (user != null) {
+      _startHistorySync(user);
+    }
+    notifyListeners();
+  }
+
+  void _startHistorySync(AuthUser user) {
+    _historySubscription?.cancel();
+    _isHistoryLoading = true;
+    _historyError = null;
+    _savedHistory = <SavedQrRecord>[];
+    _historySubscription = _storageService
+        .watchSavedQrs(userId: user.id)
+        .listen((items) {
+      _savedHistory = items;
+      _isHistoryLoading = false;
+      _historyError = null;
+      notifyListeners();
+    }, onError: (Object error, StackTrace stackTrace) {
+      debugPrint('History load failed: $error');
+      debugPrint('History load stack: $stackTrace');
+      _isHistoryLoading = false;
+      _historyError = 'Geçmiş yüklenemedi. Lütfen tekrar deneyin.';
+      notifyListeners();
+    });
+  }
+
+  void retryHistory() {
+    final user = _currentUser;
+    if (user == null) {
+      return;
+    }
+    _startHistorySync(user);
     notifyListeners();
   }
 
   @override
   void dispose() {
     _authSubscription.cancel();
+    _historySubscription?.cancel();
     tabIndexListenable.dispose();
     super.dispose();
   }

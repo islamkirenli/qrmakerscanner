@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+
 import '../../app/controller_scope.dart';
-import '../../models/qr_record.dart';
+import '../../models/saved_qr_record.dart';
 import '../../widgets/empty_state.dart';
 import '../account/account_page.dart';
 
@@ -44,28 +46,100 @@ class HistoryPage extends StatelessWidget {
             ),
           );
         }
-        final history = controller.history;
+        final history = controller.savedHistory;
+        final hasError = controller.historyError != null;
+        if (hasError && history.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.cloud_off,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    controller.historyError!,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: controller.retryHistory,
+                    child: const Text('Tekrar Dene'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        if (controller.isHistoryLoading && history.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
         if (history.isEmpty) {
           return const EmptyState(
             title: 'Geçmiş boş',
-            subtitle: 'Taradıkların ve oluşturdukların burada listelenecek.',
+            subtitle: 'Kaydettiğin QR kodlar burada listelenecek.',
           );
         }
+        final showErrorBanner = hasError && history.isNotEmpty;
         return ListView.separated(
           padding: const EdgeInsets.all(16),
-          itemCount: history.length,
+          itemCount: history.length + (showErrorBanner ? 1 : 0),
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
-            final record = history[index];
-            return Card(
-              child: ListTile(
-                leading: Icon(
-                  record.type == QrEntryType.scan
-                      ? Icons.qr_code_scanner
-                      : Icons.qr_code_2,
+            if (showErrorBanner && index == 0) {
+              return Card(
+                color: Theme.of(context).colorScheme.errorContainer,
+                child: ListTile(
+                  title: Text(
+                    controller.historyError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  trailing: TextButton(
+                    onPressed: controller.retryHistory,
+                    child: const Text('Tekrar Dene'),
+                  ),
                 ),
-                title: Text(record.payload),
-                subtitle: Text(_formatDate(record.createdAt)),
+              );
+            }
+            final record = history[showErrorBanner ? index - 1 : index];
+            return Card(
+              color: const Color(0xFF6A704C),
+              child: ListTile(
+                leading: const Icon(
+                  Icons.qr_code_2,
+                  color: Color(0xFFF1E6D9),
+                ),
+                title: Text(
+                  record.title,
+                  style: const TextStyle(color: Color(0xFFF1E6D9)),
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (record.category.isNotEmpty)
+                      Text(
+                        record.category,
+                        style: const TextStyle(color: Color(0xFFF1E6D9)),
+                      ),
+                    Text(
+                      record.payload,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Color(0xFFF1E6D9)),
+                    ),
+                    Text(
+                      _formatDate(record.createdAt),
+                      style: const TextStyle(color: Color(0xFFF1E6D9)),
+                    ),
+                  ],
+                ),
+                onTap: () => _showQrDialog(context, record),
               ),
             );
           },
@@ -80,5 +154,67 @@ class HistoryPage extends StatelessWidget {
     final hour = date.hour.toString().padLeft(2, '0');
     final minute = date.minute.toString().padLeft(2, '0');
     return '$day.$month.${date.year} $hour:$minute';
+  }
+
+  void _showQrDialog(BuildContext context, SavedQrRecord record) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => _HistoryQrDialog(record: record),
+    );
+  }
+}
+
+class _HistoryQrDialog extends StatefulWidget {
+  const _HistoryQrDialog({required this.record});
+
+  final SavedQrRecord record;
+
+  @override
+  State<_HistoryQrDialog> createState() => _HistoryQrDialogState();
+}
+
+class _HistoryQrDialogState extends State<_HistoryQrDialog> {
+  @override
+  Widget build(BuildContext context) {
+    final payload = widget.record.payload;
+    return Dialog(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.record.title,
+              key: const ValueKey('historyQrTitle'),
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            QrImageView(
+              key: const ValueKey('historyQrPreview'),
+              data: payload,
+              size: 220,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              key: const ValueKey('historyQrDownloadButton'),
+              onPressed: () => debugPrint('İndirildi'),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: const Color(0xFF6A704C),
+                foregroundColor: const Color(0xFFF1E6D9),
+                side: BorderSide.none,
+              ),
+              icon: const Icon(Icons.download),
+              label: const Text('İndir'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Kapat'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import 'auth_service.dart';
+import '../models/saved_qr_record.dart';
 
 class SaveResult {
   const SaveResult._(this.ok, this.message);
@@ -21,6 +23,10 @@ abstract class QrStorageService {
     required String payload,
     required String category,
     required Uint8List imageBytes,
+  });
+
+  Stream<List<SavedQrRecord>> watchSavedQrs({
+    required String userId,
   });
 
   void dispose();
@@ -80,6 +86,45 @@ class FirebaseQrStorageService implements QrStorageService {
   }
 
   @override
+  Stream<List<SavedQrRecord>> watchSavedQrs({
+    required String userId,
+  }) {
+    return _firestore
+        .collection('qr_codes')
+        .where('user_id', isEqualTo: userId)
+        .orderBy('created_at', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => _mapSavedRecord(doc))
+              .toList(growable: false),
+        );
+  }
+
+  SavedQrRecord _mapSavedRecord(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = doc.data();
+    final createdAt = _mapDateTime(data['created_at']);
+    return SavedQrRecord(
+      id: doc.id,
+      title: (data['title'] as String?) ?? 'Başlıksız',
+      payload: (data['payload'] as String?) ?? '',
+      category: (data['category'] as String?) ?? '',
+      createdAt: createdAt,
+      imagePath: (data['image_path'] as String?) ?? '',
+      userEmail: data['user_email'] as String?,
+    );
+  }
+
+  DateTime _mapDateTime(Object? raw) {
+    if (raw is Timestamp) {
+      return raw.toDate();
+    }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  @override
   void dispose() {}
 
   Future<void> _safeDelete(Reference ref) async {
@@ -101,6 +146,13 @@ class DisabledQrStorageService implements QrStorageService {
   }
 
   @override
+  Stream<List<SavedQrRecord>> watchSavedQrs({
+    required String userId,
+  }) {
+    return const Stream<List<SavedQrRecord>>.empty();
+  }
+
+  @override
   void dispose() {}
 }
 
@@ -109,6 +161,9 @@ class FakeQrStorageService implements QrStorageService {
   String? lastPayload;
   String? lastCategory;
   Uint8List? lastImageBytes;
+  final List<SavedQrRecord> _items = <SavedQrRecord>[];
+  final StreamController<List<SavedQrRecord>> _controller =
+      StreamController<List<SavedQrRecord>>.broadcast();
 
   @override
   Future<SaveResult> saveQr({
@@ -121,9 +176,32 @@ class FakeQrStorageService implements QrStorageService {
     lastPayload = payload;
     lastCategory = category;
     lastImageBytes = imageBytes;
+    final record = SavedQrRecord(
+      id: 'local-${_items.length + 1}',
+      title: title,
+      payload: payload,
+      category: category,
+      createdAt: DateTime.now(),
+      imagePath: 'local-path',
+      userEmail: 'user@example.com',
+    );
+    _items.insert(0, record);
+    _controller.add(List<SavedQrRecord>.unmodifiable(_items));
     return const SaveResult.ok();
   }
 
   @override
-  void dispose() {}
+  Stream<List<SavedQrRecord>> watchSavedQrs({
+    required String userId,
+  }) {
+    return () async* {
+      yield List<SavedQrRecord>.unmodifiable(_items);
+      yield* _controller.stream;
+    }();
+  }
+
+  @override
+  void dispose() {
+    _controller.close();
+  }
 }

@@ -5,7 +5,8 @@ import 'package:qr_maker_scanner/state/auth_service.dart';
 import 'package:qr_maker_scanner/state/qr_storage_service.dart';
 
 void main() {
-  testWidgets('Generate flow adds item to history', (WidgetTester tester) async {
+  testWidgets('Saved QR shows in history list and opens preview',
+      (WidgetTester tester) async {
     await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Profil'));
@@ -28,10 +29,24 @@ void main() {
 
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
 
+    await tester.tap(find.byKey(const ValueKey('qrSaveButton')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('saveQrTitle')), 'Favori QR');
+    await tester.tap(find.byKey(const ValueKey('saveQrSubmit')));
+    await tester.pumpAndSettle();
+
     await tester.tap(find.text('Geçmiş'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Merhaba QR'), findsOneWidget);
+    expect(find.text('Favori QR'), findsOneWidget);
+
+    await tester.tap(find.text('Favori QR'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('historyQrPreview')), findsOneWidget);
+    expect(find.byKey(const ValueKey('historyQrTitle')), findsOneWidget);
+    expect(find.byKey(const ValueKey('historyQrDownloadButton')), findsOneWidget);
   });
 
   testWidgets('URL generate shows QR preview', (WidgetTester tester) async {

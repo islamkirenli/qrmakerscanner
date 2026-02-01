@@ -5,7 +5,6 @@ import '../../app/controller_scope.dart';
 import '../../models/saved_qr_record.dart';
 import '../../state/qr_app_controller.dart';
 import '../../widgets/empty_state.dart';
-import '../account/account_page.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -63,11 +62,7 @@ class _HistoryPageState extends State<HistoryPage> {
                         ),
                         const SizedBox(height: 16),
                         FilledButton(
-                          onPressed: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const AccountPage(),
-                            ),
-                          ),
+                          onPressed: () => controller.setTabIndex(3),
                           child: const Text('Giriş Yap'),
                         ),
                       ],

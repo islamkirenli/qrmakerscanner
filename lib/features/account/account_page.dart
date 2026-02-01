@@ -25,6 +25,11 @@ class _AccountPageState extends State<AccountPage> {
   final ValueNotifier<bool> _isDeletingAccount = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isChangingPassword = ValueNotifier<bool>(false);
   bool _hasSeededProfile = false;
+  final TextEditingController _currentPasswordController =
+      TextEditingController();
+  final TextEditingController _newPasswordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
   final List<String> _avatarAssets = List<String>.generate(
     19,
     (index) => 'assets/avatars/avatar-${index + 1}.png',
@@ -53,6 +58,9 @@ class _AccountPageState extends State<AccountPage> {
     _isSavingProfile.dispose();
     _isDeletingAccount.dispose();
     _isChangingPassword.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -269,14 +277,92 @@ class _AccountPageState extends State<AccountPage> {
     if (_isChangingPassword.value) {
       return;
     }
-    _isChangingPassword.value = true;
-    try {
-      debugPrint('şifre değiştir');
+    final controller = QrControllerScope.of(context);
+    _currentPasswordController.clear();
+    _newPasswordController.clear();
+    _confirmPasswordController.clear();
+    final submitted = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Şifre Değiştir'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                key: const ValueKey('currentPasswordInput'),
+                controller: _currentPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Mevcut Şifre',
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('newPasswordInput'),
+                controller: _newPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Yeni Şifre',
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('confirmPasswordInput'),
+                controller: _confirmPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Yeni Şifre (Tekrar)',
+                ),
+                obscureText: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Vazgeç'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Güncelle'),
+            ),
+          ],
+        );
+      },
+    );
+    if (submitted != true) {
+      return;
+    }
+    if (_newPasswordController.text.trim() !=
+        _confirmPasswordController.text.trim()) {
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Şifre değiştirme yakında eklenecek.')),
+        const SnackBar(content: Text('Yeni şifreler eşleşmiyor.')),
+      );
+      return;
+    }
+    _isChangingPassword.value = true;
+    try {
+      final result = await controller.changePassword(
+        currentPassword: _currentPasswordController.text,
+        newPassword: _newPasswordController.text,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (!result.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message ?? 'Şifre değiştirilemedi.')),
+        );
+        return;
+      }
+      await controller.signOut();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Şifre güncellendi. Lütfen yeniden giriş yapın.'),
+        ),
       );
     } catch (_) {
       if (!mounted) {

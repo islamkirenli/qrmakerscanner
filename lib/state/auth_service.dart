@@ -38,6 +38,11 @@ abstract class AuthService {
     required String password,
   });
 
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   Future<void> signOut();
 
   void dispose();
@@ -93,6 +98,31 @@ class FirebaseAuthService implements AuthService {
   }
 
   @override
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      final email = user?.email;
+      if (user == null || email == null) {
+        return const AuthResult.error('Önce giriş yapmalısın.');
+      }
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      await user.updatePassword(newPassword);
+      return const AuthResult.ok('Şifre güncellendi.');
+    } on FirebaseAuthException catch (error) {
+      return AuthResult.error(error.message ?? 'Şifre güncellenemedi.');
+    } catch (_) {
+      return const AuthResult.error('Şifre güncellenemedi.');
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     await _auth.signOut();
   }
@@ -139,6 +169,14 @@ class DisabledAuthService implements AuthService {
   }
 
   @override
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    return const AuthResult.error('Firebase yapılandırılmadı.');
+  }
+
+  @override
   Future<void> signOut() async {}
 
   @override
@@ -176,6 +214,20 @@ class FakeAuthService implements AuthService {
     _user = AuthUser(id: 'test-user', email: email, displayName: null);
     _controller.add(_user);
     return const AuthResult.ok();
+  }
+
+  @override
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_user == null) {
+      return const AuthResult.error('Önce giriş yapmalısın.');
+    }
+    if (currentPassword.isEmpty || newPassword.isEmpty) {
+      return const AuthResult.error('Şifre gerekli.');
+    }
+    return const AuthResult.ok('Şifre güncellendi.');
   }
 
   @override

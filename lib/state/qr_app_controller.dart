@@ -178,6 +178,25 @@ class QrAppController extends ChangeNotifier {
     );
   }
 
+  Future<AuthResult> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (!isSignedIn) {
+      return const AuthResult.error('Önce giriş yapmalısın.');
+    }
+    if (currentPassword.trim().isEmpty || newPassword.trim().isEmpty) {
+      return const AuthResult.error('Şifre gerekli.');
+    }
+    if (newPassword.trim().length < 6) {
+      return const AuthResult.error('Şifre en az 6 karakter olmalı.');
+    }
+    return _authService.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
   Future<void> signOut() async {
     if (!isSignedIn) {
       return;

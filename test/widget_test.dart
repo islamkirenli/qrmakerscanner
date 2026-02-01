@@ -213,7 +213,26 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('profileChangePassword')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Şifre değiştirme yakında eklenecek.'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('currentPasswordInput')),
+      'password123',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('newPasswordInput')),
+      'password456',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('confirmPasswordInput')),
+      'password456',
+    );
+    await tester.tap(find.text('Güncelle'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Şifre güncellendi. Lütfen yeniden giriş yapın.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('authEmail')), findsOneWidget);
   });
 
   testWidgets('History selection deletes saved QR',

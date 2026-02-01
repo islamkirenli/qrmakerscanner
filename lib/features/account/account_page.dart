@@ -23,6 +23,7 @@ class _AccountPageState extends State<AccountPage> {
       ValueNotifier<String?>(null);
   final ValueNotifier<bool> _isSavingProfile = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isDeletingAccount = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isChangingPassword = ValueNotifier<bool>(false);
   bool _hasSeededProfile = false;
   final List<String> _avatarAssets = List<String>.generate(
     19,
@@ -51,6 +52,7 @@ class _AccountPageState extends State<AccountPage> {
     _customDisplayName.dispose();
     _isSavingProfile.dispose();
     _isDeletingAccount.dispose();
+    _isChangingPassword.dispose();
     super.dispose();
   }
 
@@ -263,6 +265,31 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
+  Future<void> _handleChangePassword() async {
+    if (_isChangingPassword.value) {
+      return;
+    }
+    _isChangingPassword.value = true;
+    try {
+      debugPrint('şifre değiştir');
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Şifre değiştirme yakında eklenecek.')),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Şifre değiştirilemedi.')),
+      );
+    } finally {
+      _isChangingPassword.value = false;
+    }
+  }
+
   void _seedProfileIfNeeded(QrAppController controller) {
     final profile = controller.profile;
     if (profile == null || _hasSeededProfile) {
@@ -296,9 +323,6 @@ class _AccountPageState extends State<AccountPage> {
           _seedProfileIfNeeded(controller);
         }
         return Scaffold(
-          appBar: AppBar(
-            title: const Text('Hesap'),
-          ),
           body: Padding(
             padding: const EdgeInsets.all(16),
             child: controller.isSignedIn
@@ -596,6 +620,30 @@ class _AccountPageState extends State<AccountPage> {
                           icon: const Icon(Icons.logout),
                           label: const Text('Çıkış Yap'),
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _isChangingPassword,
+                        builder: (context, isChanging, _) {
+                          return SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              key: const ValueKey('profileChangePassword'),
+                              onPressed:
+                                  isChanging ? null : _handleChangePassword,
+                              icon: isChanging
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.lock_outline),
+                              label: const Text('Şifre Değiştir'),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
                       ValueListenableBuilder<bool>(

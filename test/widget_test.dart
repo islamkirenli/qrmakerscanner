@@ -192,6 +192,30 @@ void main() {
     expect(find.text('Hesap silme yakında eklenecek.'), findsOneWidget);
   });
 
+  testWidgets('Profile change password shows feedback',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+      ),
+    );
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('profileChangePassword')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Şifre değiştirme yakında eklenecek.'), findsOneWidget);
+  });
+
   testWidgets('History selection deletes saved QR',
       (WidgetTester tester) async {
     final auth = FakeAuthService();

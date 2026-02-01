@@ -504,7 +504,9 @@ class _AccountPageState extends State<AccountPage> {
                           Expanded(
                             child: _ProfileInfoCard(
                               title: 'Son Tarama',
-                              value: controller.lastScan ?? 'Henüz yok',
+                              value: controller.profile?.lastScan ??
+                                  controller.lastScan ??
+                                  'Henüz yok',
                               icon: Icons.qr_code_scanner,
                             ),
                           ),
@@ -512,7 +514,9 @@ class _AccountPageState extends State<AccountPage> {
                           Expanded(
                             child: _ProfileInfoCard(
                               title: 'Son Oluşturma',
-                              value: controller.lastGenerated ?? 'Henüz yok',
+                              value: controller.profile?.lastGenerated ??
+                                  controller.lastGenerated ??
+                                  'Henüz yok',
                               icon: Icons.qr_code_2,
                             ),
                           ),

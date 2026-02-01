@@ -143,6 +143,8 @@ void main() {
         firstName: 'Grace',
         lastName: 'Hopper',
         avatarIndex: 3,
+        lastScan: 'SCAN-001',
+        lastGenerated: 'GEN-001',
       );
     await auth.signInWithEmailPassword(
       email: 'user@example.com',
@@ -162,6 +164,8 @@ void main() {
 
     expect(find.text('Grace Hopper'), findsOneWidget);
     expect(find.byKey(const ValueKey('profileAvatarPreview_3')), findsOneWidget);
+    expect(find.text('SCAN-001'), findsOneWidget);
+    expect(find.text('GEN-001'), findsOneWidget);
   });
 
   testWidgets('Profile delete account shows feedback',

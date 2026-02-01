@@ -45,6 +45,8 @@ class FirebaseProfileService implements ProfileService {
           firstName: '',
           lastName: '',
           avatarIndex: 0,
+          lastScan: null,
+          lastGenerated: null,
         );
       }
       return UserProfile(
@@ -53,6 +55,8 @@ class FirebaseProfileService implements ProfileService {
         firstName: (data['first_name'] as String?) ?? '',
         lastName: (data['last_name'] as String?) ?? '',
         avatarIndex: (data['avatar_index'] as int?) ?? 0,
+        lastScan: data['last_scan'] as String?,
+        lastGenerated: data['last_generated'] as String?,
       );
     } on FirebaseException catch (error) {
       throw error;
@@ -70,6 +74,8 @@ class FirebaseProfileService implements ProfileService {
         'first_name': profile.firstName,
         'last_name': profile.lastName,
         'avatar_index': profile.avatarIndex,
+        'last_scan': profile.lastScan,
+        'last_generated': profile.lastGenerated,
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
       return const ProfileResult.ok();
@@ -119,6 +125,8 @@ class FakeProfileService implements ProfileService {
           firstName: '',
           lastName: '',
           avatarIndex: 0,
+          lastScan: null,
+          lastGenerated: null,
         );
   }
 

@@ -91,6 +91,7 @@ class QrAppController extends ChangeNotifier {
       notifyListeners();
       return const QrActionResult.ok('Giriş yapmadan geçmişe kaydedilmez.');
     }
+    _updateLastGenerated(text);
     _history.insert(
       0,
       QrRecord(
@@ -113,6 +114,7 @@ class QrAppController extends ChangeNotifier {
       notifyListeners();
       return const QrActionResult.ok('Giriş yapmadan geçmişe kaydedilmez.');
     }
+    _updateLastScan(text);
     _history.insert(
       0,
       QrRecord(
@@ -227,6 +229,36 @@ class QrAppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _updateLastScan(String value) async {
+    final profile = _profile;
+    final user = _currentUser;
+    if (user == null || profile == null) {
+      return;
+    }
+    final updated = profile.copyWith(lastScan: value);
+    final result = await _profileService.saveProfile(profile: updated);
+    if (result.ok) {
+      _profile = updated;
+      _lastScan = value;
+      notifyListeners();
+    }
+  }
+
+  Future<void> _updateLastGenerated(String value) async {
+    final profile = _profile;
+    final user = _currentUser;
+    if (user == null || profile == null) {
+      return;
+    }
+    final updated = profile.copyWith(lastGenerated: value);
+    final result = await _profileService.saveProfile(profile: updated);
+    if (result.ok) {
+      _profile = updated;
+      _lastGenerated = value;
+      notifyListeners();
+    }
+  }
+
   Future<void> _loadProfile(AuthUser user) async {
     _isProfileLoading = true;
     _profileError = null;
@@ -243,7 +275,11 @@ class QrAppController extends ChangeNotifier {
             firstName: '',
             lastName: '',
             avatarIndex: 0,
+            lastScan: null,
+            lastGenerated: null,
           );
+      _lastScan = _profile?.lastScan ?? _lastScan;
+      _lastGenerated = _profile?.lastGenerated ?? _lastGenerated;
       _isProfileLoading = false;
       _profileError = null;
       notifyListeners();
@@ -263,12 +299,15 @@ class QrAppController extends ChangeNotifier {
     if (user == null) {
       return const ProfileResult.error('Giriş yapmadan kaydedilemez.');
     }
+    final existing = _profile;
     final profile = UserProfile(
       userId: user.id,
       email: user.email ?? '',
       firstName: firstName,
       lastName: lastName,
       avatarIndex: avatarIndex,
+      lastScan: existing?.lastScan,
+      lastGenerated: existing?.lastGenerated,
     );
     final result = await _profileService.saveProfile(profile: profile);
     if (result.ok) {

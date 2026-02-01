@@ -5,8 +5,10 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
 import 'qr_storage_service.dart';
+import 'profile_service.dart';
 import '../models/qr_record.dart';
 import '../models/saved_qr_record.dart';
+import '../models/user_profile.dart';
 
 class QrActionResult {
   const QrActionResult._(this.ok, this.message);
@@ -22,8 +24,10 @@ class QrAppController extends ChangeNotifier {
   QrAppController({
     required AuthService authService,
     required QrStorageService storageService,
+    required ProfileService profileService,
   })  : _authService = authService,
         _storageService = storageService,
+        _profileService = profileService,
         tabIndexListenable = ValueNotifier<int>(0) {
     _currentUser = _authService.currentUser;
     _syncUser(_currentUser);
@@ -33,11 +37,15 @@ class QrAppController extends ChangeNotifier {
   final ValueNotifier<int> tabIndexListenable;
   final AuthService _authService;
   final QrStorageService _storageService;
+  final ProfileService _profileService;
   late final StreamSubscription<AuthUser?> _authSubscription;
   StreamSubscription<List<SavedQrRecord>>? _historySubscription;
   String? _lastScan;
   String? _lastGenerated;
   AuthUser? _currentUser;
+  UserProfile? _profile;
+  bool _isProfileLoading = false;
+  String? _profileError;
   final List<QrRecord> _history = <QrRecord>[];
   List<SavedQrRecord> _savedHistory = <SavedQrRecord>[];
   bool _isHistoryLoading = false;
@@ -52,6 +60,9 @@ class QrAppController extends ChangeNotifier {
   bool get isSignedIn => _currentUser != null;
   String? get displayName => _currentUser?.displayName ?? _currentUser?.email;
   String? get email => _currentUser?.email;
+  UserProfile? get profile => _profile;
+  bool get isProfileLoading => _isProfileLoading;
+  String? get profileError => _profileError;
   UnmodifiableListView<QrRecord> get history => UnmodifiableListView(_history);
   UnmodifiableListView<SavedQrRecord> get savedHistory =>
       UnmodifiableListView(_savedHistory);
@@ -196,6 +207,9 @@ class QrAppController extends ChangeNotifier {
     if (user == null && wasSignedIn) {
       _lastScan = null;
       _lastGenerated = null;
+      _profile = null;
+      _isProfileLoading = false;
+      _profileError = null;
       _history.clear();
       _historySubscription?.cancel();
       _historySubscription = null;
@@ -208,8 +222,68 @@ class QrAppController extends ChangeNotifier {
     }
     if (user != null) {
       _startHistorySync(user);
+      _loadProfile(user);
     }
     notifyListeners();
+  }
+
+  Future<void> _loadProfile(AuthUser user) async {
+    _isProfileLoading = true;
+    _profileError = null;
+    notifyListeners();
+    try {
+      final loadedProfile = await _profileService.fetchProfile(
+        userId: user.id,
+        email: user.email ?? '',
+      );
+      _profile = loadedProfile ??
+          UserProfile(
+            userId: user.id,
+            email: user.email ?? '',
+            firstName: '',
+            lastName: '',
+            avatarIndex: 0,
+          );
+      _isProfileLoading = false;
+      _profileError = null;
+      notifyListeners();
+    } catch (_) {
+      _isProfileLoading = false;
+      _profileError = 'Profil yüklenemedi.';
+      notifyListeners();
+    }
+  }
+
+  Future<ProfileResult> saveProfile({
+    required String firstName,
+    required String lastName,
+    required int avatarIndex,
+  }) async {
+    final user = _currentUser;
+    if (user == null) {
+      return const ProfileResult.error('Giriş yapmadan kaydedilemez.');
+    }
+    final profile = UserProfile(
+      userId: user.id,
+      email: user.email ?? '',
+      firstName: firstName,
+      lastName: lastName,
+      avatarIndex: avatarIndex,
+    );
+    final result = await _profileService.saveProfile(profile: profile);
+    if (result.ok) {
+      _profile = profile;
+      notifyListeners();
+    }
+    return result;
+  }
+
+  void retryProfile() {
+    final user = _currentUser;
+    if (user == null) {
+      return;
+    }
+    _loadProfile(user);
   }
 
   void _startHistorySync(AuthUser user) {

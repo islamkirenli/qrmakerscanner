@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_maker_scanner/app/app.dart';
 import 'package:qr_maker_scanner/features/scan/scan_page.dart';
+import 'package:qr_maker_scanner/models/user_profile.dart';
 import 'package:qr_maker_scanner/state/auth_service.dart';
+import 'package:qr_maker_scanner/state/profile_service.dart';
 import 'package:qr_maker_scanner/state/qr_storage_service.dart';
 
 void main() {
@@ -47,6 +49,143 @@ void main() {
     expect(find.byKey(const ValueKey('historyQrPreview')), findsOneWidget);
     expect(find.byKey(const ValueKey('historyQrTitle')), findsOneWidget);
     expect(find.byKey(const ValueKey('historyQrDownloadButton')), findsOneWidget);
+  });
+
+  testWidgets('Profile copy email shows feedback',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+      ),
+    );
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('profileCopyEmail')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('profileCopyEmail')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Email kopyalandı.'), findsOneWidget);
+  });
+
+  testWidgets('Profile name save updates header',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+      ),
+    );
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('profileFirstName')), 'Ada');
+    await tester.enterText(find.byKey(const ValueKey('profileLastName')), 'Lovelace');
+    await tester.tap(find.byKey(const ValueKey('profileSave')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profil kaydedildi.'), findsOneWidget);
+    expect(find.text('Ada Lovelace'), findsOneWidget);
+  });
+
+  testWidgets('Profile avatar picker selects avatar',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+      ),
+    );
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('profileAvatarPreview_0')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('profileAvatarPicker')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('avatarOption2')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('profileAvatarPreview_2')), findsOneWidget);
+  });
+
+  testWidgets('Profile loads from service on open',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    final profileService = FakeProfileService()
+      ..storedProfile = const UserProfile(
+        userId: 'test-user',
+        email: 'user@example.com',
+        firstName: 'Grace',
+        lastName: 'Hopper',
+        avatarIndex: 3,
+      );
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+        profileServiceOverride: profileService,
+      ),
+    );
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Grace Hopper'), findsOneWidget);
+    expect(find.byKey(const ValueKey('profileAvatarPreview_3')), findsOneWidget);
+  });
+
+  testWidgets('Profile delete account shows feedback',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+      ),
+    );
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('profileDeleteAccount')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hesap silme yakında eklenecek.'), findsOneWidget);
   });
 
   testWidgets('History selection deletes saved QR',

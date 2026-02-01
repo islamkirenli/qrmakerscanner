@@ -171,6 +171,8 @@ void main() {
   testWidgets('Profile delete account shows feedback',
       (WidgetTester tester) async {
     final auth = FakeAuthService();
+    final storage = FakeQrStorageService();
+    final profileService = FakeProfileService();
     await auth.signInWithEmailPassword(
       email: 'user@example.com',
       password: 'password123',
@@ -180,6 +182,8 @@ void main() {
       QrApp(
         isFirebaseReady: false,
         authServiceOverride: auth,
+        storageServiceOverride: storage,
+        profileServiceOverride: profileService,
       ),
     );
 
@@ -189,7 +193,27 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('profileDeleteAccount')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Hesap silme yakında eklenecek.'), findsOneWidget);
+    await tester.tap(find.text('Devam Et'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Silme nedeni gerekli.'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('deleteReasonInput')),
+      'Uygulamayı artık kullanmıyorum.',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('deletePasswordInput')),
+      'password123',
+    );
+    await tester.tap(find.text('Devam Et'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Hesap silindi.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('authEmail')), findsOneWidget);
   });
 
   testWidgets('Profile change password shows feedback',

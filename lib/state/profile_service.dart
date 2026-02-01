@@ -22,6 +22,16 @@ abstract class ProfileService {
     required UserProfile profile,
   });
 
+  Future<ProfileResult> saveDeletionReason({
+    required String userId,
+    required String? email,
+    required String reason,
+  });
+
+  Future<ProfileResult> deleteProfile({
+    required String userId,
+  });
+
   void dispose();
 }
 
@@ -87,6 +97,44 @@ class FirebaseProfileService implements ProfileService {
   }
 
   @override
+  Future<ProfileResult> saveDeletionReason({
+    required String userId,
+    required String? email,
+    required String reason,
+  }) async {
+    try {
+      await _firestore.collection('account_deletions').add({
+        'user_id': userId,
+        'email': email,
+        'reason': reason,
+        'created_at': FieldValue.serverTimestamp(),
+      });
+      return const ProfileResult.ok();
+    } on FirebaseException catch (error) {
+      return ProfileResult.error(error.message ?? error.code);
+    } catch (error) {
+      return ProfileResult.error(error.toString());
+    }
+  }
+
+  @override
+  Future<ProfileResult> deleteProfile({
+    required String userId,
+  }) async {
+    try {
+      await _firestore.collection('users').doc(userId).delete();
+      return const ProfileResult.ok();
+    } on FirebaseException catch (error) {
+      if (error.code == 'not-found') {
+        return const ProfileResult.ok();
+      }
+      return ProfileResult.error(error.message ?? error.code);
+    } catch (error) {
+      return ProfileResult.error(error.toString());
+    }
+  }
+
+  @override
   void dispose() {}
 }
 
@@ -102,6 +150,22 @@ class DisabledProfileService implements ProfileService {
   @override
   Future<ProfileResult> saveProfile({
     required UserProfile profile,
+  }) async {
+    return const ProfileResult.error('Firebase yapılandırılmadı.');
+  }
+
+  @override
+  Future<ProfileResult> saveDeletionReason({
+    required String userId,
+    required String? email,
+    required String reason,
+  }) async {
+    return const ProfileResult.error('Firebase yapılandırılmadı.');
+  }
+
+  @override
+  Future<ProfileResult> deleteProfile({
+    required String userId,
   }) async {
     return const ProfileResult.error('Firebase yapılandırılmadı.');
   }
@@ -135,6 +199,25 @@ class FakeProfileService implements ProfileService {
     required UserProfile profile,
   }) async {
     storedProfile = profile;
+    return const ProfileResult.ok();
+  }
+
+  @override
+  Future<ProfileResult> saveDeletionReason({
+    required String userId,
+    required String? email,
+    required String reason,
+  }) async {
+    return const ProfileResult.ok();
+  }
+
+  @override
+  Future<ProfileResult> deleteProfile({
+    required String userId,
+  }) async {
+    if (storedProfile?.userId == userId) {
+      storedProfile = null;
+    }
     return const ProfileResult.ok();
   }
 

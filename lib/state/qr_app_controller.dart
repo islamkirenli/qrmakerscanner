@@ -20,6 +20,16 @@ class QrActionResult {
   const QrActionResult.error(String message) : this._(false, message);
 }
 
+class AccountDeletionResult {
+  const AccountDeletionResult._(this.ok, this.message);
+
+  final bool ok;
+  final String? message;
+
+  const AccountDeletionResult.ok([String? message]) : this._(true, message);
+  const AccountDeletionResult.error(String message) : this._(false, message);
+}
+
 class QrAppController extends ChangeNotifier {
   QrAppController({
     required AuthService authService,
@@ -202,6 +212,63 @@ class QrAppController extends ChangeNotifier {
       return;
     }
     await _authService.signOut();
+  }
+
+  Future<AccountDeletionResult> deleteAccount({
+    required String reason,
+    required String currentPassword,
+  }) async {
+    final user = _currentUser;
+    if (user == null) {
+      return const AccountDeletionResult.error('Önce giriş yapmalısın.');
+    }
+    final trimmedReason = reason.trim();
+    if (trimmedReason.isEmpty) {
+      return const AccountDeletionResult.error('Silme nedeni gerekli.');
+    }
+    final trimmedPassword = currentPassword.trim();
+    if (trimmedPassword.isEmpty) {
+      return const AccountDeletionResult.error('Şifre gerekli.');
+    }
+    final reauthResult = await _authService.reauthenticate(
+      currentPassword: trimmedPassword,
+    );
+    if (!reauthResult.ok) {
+      return AccountDeletionResult.error(
+        reauthResult.message ?? 'Yeniden doğrulama başarısız.',
+      );
+    }
+    final reasonResult = await _profileService.saveDeletionReason(
+      userId: user.id,
+      email: user.email,
+      reason: trimmedReason,
+    );
+    if (!reasonResult.ok) {
+      return AccountDeletionResult.error(
+        reasonResult.message ?? 'Silme nedeni kaydedilemedi.',
+      );
+    }
+    final deleteQrResult = await _storageService.deleteAllForUser(
+      userId: user.id,
+    );
+    if (!deleteQrResult.ok) {
+      return AccountDeletionResult.error(
+        deleteQrResult.message ?? 'QR verileri silinemedi.',
+      );
+    }
+    final profileDelete = await _profileService.deleteProfile(userId: user.id);
+    if (!profileDelete.ok) {
+      return AccountDeletionResult.error(
+        profileDelete.message ?? 'Profil silinemedi.',
+      );
+    }
+    final authDelete = await _authService.deleteCurrentUser();
+    if (!authDelete.ok) {
+      return AccountDeletionResult.error(
+        authDelete.message ?? 'Hesap silinemedi.',
+      );
+    }
+    return const AccountDeletionResult.ok('Hesap silindi.');
   }
 
   Future<SaveResult> saveGenerated({

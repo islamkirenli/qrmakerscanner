@@ -43,6 +43,12 @@ abstract class AuthService {
     required String newPassword,
   });
 
+  Future<AuthResult> reauthenticate({
+    required String currentPassword,
+  });
+
+  Future<AuthResult> deleteCurrentUser();
+
   Future<void> signOut();
 
   void dispose();
@@ -123,6 +129,45 @@ class FirebaseAuthService implements AuthService {
   }
 
   @override
+  Future<AuthResult> reauthenticate({
+    required String currentPassword,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      final email = user?.email;
+      if (user == null || email == null) {
+        return const AuthResult.error('Önce giriş yapmalısın.');
+      }
+      final credential = EmailAuthProvider.credential(
+        email: email,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      return const AuthResult.ok();
+    } on FirebaseAuthException catch (error) {
+      return AuthResult.error(error.message ?? 'Yeniden doğrulama başarısız.');
+    } catch (_) {
+      return const AuthResult.error('Yeniden doğrulama başarısız.');
+    }
+  }
+
+  @override
+  Future<AuthResult> deleteCurrentUser() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        return const AuthResult.error('Önce giriş yapmalısın.');
+      }
+      await user.delete();
+      return const AuthResult.ok('Hesap silindi.');
+    } on FirebaseAuthException catch (error) {
+      return AuthResult.error(error.message ?? 'Hesap silinemedi.');
+    } catch (_) {
+      return const AuthResult.error('Hesap silinemedi.');
+    }
+  }
+
+  @override
   Future<void> signOut() async {
     await _auth.signOut();
   }
@@ -173,6 +218,18 @@ class DisabledAuthService implements AuthService {
     required String currentPassword,
     required String newPassword,
   }) async {
+    return const AuthResult.error('Firebase yapılandırılmadı.');
+  }
+
+  @override
+  Future<AuthResult> reauthenticate({
+    required String currentPassword,
+  }) async {
+    return const AuthResult.error('Firebase yapılandırılmadı.');
+  }
+
+  @override
+  Future<AuthResult> deleteCurrentUser() async {
     return const AuthResult.error('Firebase yapılandırılmadı.');
   }
 
@@ -228,6 +285,29 @@ class FakeAuthService implements AuthService {
       return const AuthResult.error('Şifre gerekli.');
     }
     return const AuthResult.ok('Şifre güncellendi.');
+  }
+
+  @override
+  Future<AuthResult> reauthenticate({
+    required String currentPassword,
+  }) async {
+    if (_user == null) {
+      return const AuthResult.error('Önce giriş yapmalısın.');
+    }
+    if (currentPassword.isEmpty) {
+      return const AuthResult.error('Şifre gerekli.');
+    }
+    return const AuthResult.ok();
+  }
+
+  @override
+  Future<AuthResult> deleteCurrentUser() async {
+    if (_user == null) {
+      return const AuthResult.error('Önce giriş yapmalısın.');
+    }
+    _user = null;
+    _controller.add(null);
+    return const AuthResult.ok('Hesap silindi.');
   }
 
   @override

@@ -43,6 +43,10 @@ abstract class QrStorageService {
     required List<SavedQrRecord> items,
   });
 
+  Future<DeleteResult> deleteAllForUser({
+    required String userId,
+  });
+
   void dispose();
 }
 
@@ -148,6 +152,45 @@ class FirebaseQrStorageService implements QrStorageService {
     }
   }
 
+  @override
+  Future<DeleteResult> deleteAllForUser({
+    required String userId,
+  }) async {
+    try {
+      final snapshot = await _firestore
+          .collection('qr_codes')
+          .where('user_id', isEqualTo: userId)
+          .get();
+      if (snapshot.docs.isEmpty) {
+        return const DeleteResult.ok();
+      }
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final imagePath = (data['image_path'] as String?) ?? '';
+        if (imagePath.isEmpty) {
+          continue;
+        }
+        try {
+          await _storage.ref().child('qr_codes/$imagePath').delete();
+        } on FirebaseException catch (error) {
+          if (error.code != 'object-not-found') {
+            return DeleteResult.error(error.message ?? error.code);
+          }
+        }
+      }
+      final batch = _firestore.batch();
+      for (final doc in snapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+      return const DeleteResult.ok();
+    } on FirebaseException catch (error) {
+      return DeleteResult.error(error.message ?? error.code);
+    } catch (error) {
+      return DeleteResult.error(error.toString());
+    }
+  }
+
   SavedQrRecord _mapSavedRecord(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
   ) {
@@ -202,6 +245,13 @@ class DisabledQrStorageService implements QrStorageService {
   @override
   Future<DeleteResult> deleteQrs({
     required List<SavedQrRecord> items,
+  }) async {
+    return const DeleteResult.error('Firebase yapılandırılmadı.');
+  }
+
+  @override
+  Future<DeleteResult> deleteAllForUser({
+    required String userId,
   }) async {
     return const DeleteResult.error('Firebase yapılandırılmadı.');
   }
@@ -263,6 +313,15 @@ class FakeQrStorageService implements QrStorageService {
     }
     final ids = items.map((item) => item.id).toSet();
     _items.removeWhere((item) => ids.contains(item.id));
+    _controller.add(List<SavedQrRecord>.unmodifiable(_items));
+    return const DeleteResult.ok();
+  }
+
+  @override
+  Future<DeleteResult> deleteAllForUser({
+    required String userId,
+  }) async {
+    _items.clear();
     _controller.add(List<SavedQrRecord>.unmodifiable(_items));
     return const DeleteResult.ok();
   }

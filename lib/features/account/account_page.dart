@@ -30,6 +30,10 @@ class _AccountPageState extends State<AccountPage> {
   final TextEditingController _newPasswordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  final TextEditingController _deleteReasonController =
+      TextEditingController();
+  final TextEditingController _deletePasswordController =
+      TextEditingController();
   final List<String> _avatarAssets = List<String>.generate(
     19,
     (index) => 'assets/avatars/avatar-${index + 1}.png',
@@ -61,6 +65,8 @@ class _AccountPageState extends State<AccountPage> {
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
+    _deleteReasonController.dispose();
+    _deletePasswordController.dispose();
     super.dispose();
   }
 
@@ -252,14 +258,140 @@ class _AccountPageState extends State<AccountPage> {
     if (_isDeletingAccount.value) {
       return;
     }
-    _isDeletingAccount.value = true;
-    try {
-      debugPrint('hesabı sil');
+    _deleteReasonController.clear();
+    _deletePasswordController.clear();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        return AlertDialog(
+          title: const Text('Hesabı Sil'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: colorScheme.primary.withOpacity(0.2),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.sentiment_dissatisfied_rounded,
+                      color: colorScheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Gitmene üzülüyoruz',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Deneyimini geliştirmemize yardımcı ol.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Hesabını silme nedenini paylaşır mısın?',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('deleteReasonInput'),
+                controller: _deleteReasonController,
+                decoration: const InputDecoration(
+                  labelText: 'Silme nedeni',
+                ),
+                maxLines: 3,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('deletePasswordInput'),
+                controller: _deletePasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Şifre',
+                ),
+                obscureText: true,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Vazgeç'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Devam Et'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
+    }
+    if (_deleteReasonController.text.trim().isEmpty) {
       if (!mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Hesap silme yakında eklenecek.')),
+        const SnackBar(content: Text('Silme nedeni gerekli.')),
+      );
+      return;
+    }
+    if (_deletePasswordController.text.trim().isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Şifre gerekli.')),
+      );
+      return;
+    }
+    _isDeletingAccount.value = true;
+    try {
+      final controller = QrControllerScope.of(context);
+      final result = await controller.deleteAccount(
+        reason: _deleteReasonController.text,
+        currentPassword: _deletePasswordController.text,
+      );
+      debugPrint(
+        'deleteAccount result: ok=${result.ok} message=${result.message}',
+      );
+      if (!mounted) {
+        return;
+      }
+      if (!result.ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.message ?? 'Hesap silinemedi.')),
+        );
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Hesap silindi.')),
       );
     } catch (_) {
       if (!mounted) {

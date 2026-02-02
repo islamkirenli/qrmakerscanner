@@ -48,7 +48,7 @@ ThemeData buildQrTheme() {
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(),
     ),
-    cardTheme: const CardTheme(
+    cardTheme: const CardThemeData(
       color: background,
       surfaceTintColor: Colors.transparent,
     ),

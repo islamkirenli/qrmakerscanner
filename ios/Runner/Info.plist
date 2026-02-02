@@ -47,5 +47,9 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>QR kod taramak için kamera erişimi gerekir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>QR görsellerini kaydetmek için galeri erişimi gerekir.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>QR görsellerini cihazına kaydetmek için izin gerekir.</string>
 </dict>
 </plist>

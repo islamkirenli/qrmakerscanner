@@ -1,12 +1,27 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_maker_scanner/app/app.dart';
 import 'package:qr_maker_scanner/features/scan/scan_page.dart';
+import 'package:qr_maker_scanner/features/generate/generate_category.dart';
+import 'package:qr_maker_scanner/features/generate/generate_detail_page.dart';
 import 'package:qr_maker_scanner/models/user_profile.dart';
 import 'package:qr_maker_scanner/state/auth_service.dart';
 import 'package:qr_maker_scanner/state/profile_service.dart';
+import 'package:qr_maker_scanner/state/qr_app_controller.dart';
+import 'package:qr_maker_scanner/state/qr_image_saver.dart';
 import 'package:qr_maker_scanner/state/qr_storage_service.dart';
+import 'package:qr_maker_scanner/app/controller_scope.dart';
 
 void main() {
+  class FakeQrImageSaver implements QrImageSaver {
+    int callCount = 0;
+
+    @override
+    Future<SaveResult> saveToGallery({required String payload}) async {
+      callCount += 1;
+      return const SaveResult.ok('Kaydedildi.');
+    }
+  }
+
   testWidgets('Saved QR shows in history list and opens preview',
       (WidgetTester tester) async {
     await tester.pumpWidget(const QrApp(isFirebaseReady: false));
@@ -95,6 +110,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('authConfirmPassword')), findsOneWidget);
+  });
+
+  testWidgets('Generated QR download saves to gallery',
+      (WidgetTester tester) async {
+    final controller = QrAppController(
+      authService: FakeAuthService(),
+      storageService: FakeQrStorageService(),
+      profileService: FakeProfileService(),
+    );
+    final saver = FakeQrImageSaver();
+    final category = generateCategories
+        .firstWhere((item) => item.type == GenerateCategoryType.text);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QrControllerScope(
+          controller: controller,
+          child: GenerateDetailPage(
+            category: category,
+            imageSaver: saver,
+          ),
+        ),
+      ),
+    );
+
+    await tester.enterText(find.byType(TextField).first, 'Merhaba QR');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('qrDownloadButton')));
+    await tester.pumpAndSettle();
+
+    expect(saver.callCount, 1);
+    expect(find.text('Kaydedildi.'), findsOneWidget);
   });
 
   testWidgets('Profile name save updates header',

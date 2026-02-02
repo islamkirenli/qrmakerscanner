@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../app/controller_scope.dart';
+import '../../state/qr_image_saver.dart';
 import '../account/account_page.dart';
 import 'generate_category.dart';
 
@@ -23,9 +24,14 @@ enum SocialPlatform {
 }
 
 class GenerateDetailPage extends StatefulWidget {
-  const GenerateDetailPage({super.key, required this.category});
+  const GenerateDetailPage({
+    super.key,
+    required this.category,
+    this.imageSaver,
+  });
 
   final GenerateCategoryInfo category;
+  final QrImageSaver? imageSaver;
 
   @override
   State<GenerateDetailPage> createState() => _GenerateDetailPageState();
@@ -46,10 +52,13 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   String _wifiSecurity = 'WPA';
   SocialPlatform _socialPlatform = SocialPlatform.instagram;
   String? _generatedPayload;
+  final ValueNotifier<bool> _isDownloading = ValueNotifier<bool>(false);
+  late final QrImageSaver _imageSaver;
 
   @override
   void initState() {
     super.initState();
+    _imageSaver = widget.imageSaver ?? const GalleryQrImageSaver();
     _textController = TextEditingController();
     _emailController = TextEditingController();
     _subjectController = TextEditingController();
@@ -76,7 +85,28 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _socialController.dispose();
     _ssidController.dispose();
     _passwordController.dispose();
+    _isDownloading.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleDownload() async {
+    final payload = _generatedPayload;
+    if (payload == null) {
+      _showSnackBar('İndirilecek QR bulunamadı.');
+      return;
+    }
+    if (_isDownloading.value) {
+      return;
+    }
+    _isDownloading.value = true;
+    final result = await _imageSaver.saveToGallery(payload: payload);
+    _isDownloading.value = false;
+    if (!mounted) {
+      return;
+    }
+    _showSnackBar(
+      result.message ?? (result.ok ? 'QR görsellere kaydedildi.' : 'Kayıt başarısız.'),
+    );
   }
 
   void _handleGenerate() {
@@ -319,11 +349,24 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
-                    key: const ValueKey('qrDownloadButton'),
-                    onPressed: () {},
-                    icon: const Icon(Icons.download),
-                    label: const Text('İndir'),
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: _isDownloading,
+                    builder: (context, isDownloading, _) {
+                      return OutlinedButton.icon(
+                        key: const ValueKey('qrDownloadButton'),
+                        onPressed: isDownloading ? null : _handleDownload,
+                        icon: isDownloading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.download),
+                        label: Text(isDownloading ? 'Kaydediliyor' : 'İndir'),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(width: 12),

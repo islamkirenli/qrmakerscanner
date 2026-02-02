@@ -77,6 +77,26 @@ void main() {
     expect(find.text('Email kopyalandı.'), findsOneWidget);
   });
 
+  testWidgets('Auth screen shows modern cards',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('authHeroCard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('authFormCard')), findsOneWidget);
+    expect(find.byKey(const ValueKey('authEmail')), findsOneWidget);
+    expect(find.byKey(const ValueKey('authPassword')), findsOneWidget);
+    expect(find.byKey(const ValueKey('authSubmit')), findsOneWidget);
+    expect(find.byKey(const ValueKey('authConfirmPassword')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('authToggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('authConfirmPassword')), findsOneWidget);
+  });
+
   testWidgets('Profile name save updates header',
       (WidgetTester tester) async {
     final auth = FakeAuthService();

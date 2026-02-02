@@ -13,6 +13,7 @@ class AccountPage extends StatefulWidget {
 class _AccountPageState extends State<AccountPage> {
   late final TextEditingController _emailController;
   late final TextEditingController _passwordController;
+  late final TextEditingController _authConfirmPasswordController;
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
   final ValueNotifier<bool> _isLoginMode = ValueNotifier<bool>(true);
@@ -25,6 +26,7 @@ class _AccountPageState extends State<AccountPage> {
   final ValueNotifier<bool> _isDeletingAccount = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _isChangingPassword = ValueNotifier<bool>(false);
   bool _hasSeededProfile = false;
+  bool _wasSignedIn = false;
   final TextEditingController _currentPasswordController =
       TextEditingController();
   final TextEditingController _newPasswordController = TextEditingController();
@@ -44,6 +46,7 @@ class _AccountPageState extends State<AccountPage> {
     super.initState();
     _emailController = TextEditingController();
     _passwordController = TextEditingController();
+    _authConfirmPasswordController = TextEditingController();
     _firstNameController = TextEditingController();
     _lastNameController = TextEditingController();
   }
@@ -52,6 +55,7 @@ class _AccountPageState extends State<AccountPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _authConfirmPasswordController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _isLoginMode.dispose();
@@ -72,8 +76,24 @@ class _AccountPageState extends State<AccountPage> {
 
   Future<void> _handleAuth() async {
     final controller = QrControllerScope.of(context);
-    _isLoading.value = true;
     final isLoginMode = _isLoginMode.value;
+    if (!isLoginMode) {
+      final password = _passwordController.text.trim();
+      final confirmPassword = _authConfirmPasswordController.text.trim();
+      if (password.isEmpty || confirmPassword.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Şifre doğrulama gerekli.')),
+        );
+        return;
+      }
+      if (password != confirmPassword) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Şifreler eşleşmiyor.')),
+        );
+        return;
+      }
+    }
+    _isLoading.value = true;
     final result = isLoginMode
         ? await controller.signInWithEmailPassword(
             email: _emailController.text,
@@ -96,6 +116,7 @@ class _AccountPageState extends State<AccountPage> {
     if (isLoginMode) {
       controller.setTabIndex(0);
     } else {
+      _authConfirmPasswordController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.message ?? 'Kayıt başarılı.')),
       );
@@ -535,10 +556,42 @@ class _AccountPageState extends State<AccountPage> {
       animation: controller,
       builder: (context, _) {
         if (!controller.isSignedIn) {
+          if (_wasSignedIn) {
+            _emailController.clear();
+            _passwordController.clear();
+            _authConfirmPasswordController.clear();
+            _isLoginMode.value = true;
+          }
+          _wasSignedIn = false;
           _hasSeededProfile = false;
           _customDisplayName.value = null;
         } else if (!controller.isProfileLoading) {
           _seedProfileIfNeeded(controller);
+          _wasSignedIn = true;
+        }
+        final inputBorder = OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: colorScheme.outline.withOpacity(0.4),
+          ),
+        );
+        final focusedBorder = OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(
+            color: colorScheme.primary,
+            width: 1.4,
+          ),
+        );
+        InputDecoration authDecoration(String label, IconData icon) {
+          return InputDecoration(
+            labelText: label,
+            prefixIcon: Icon(icon),
+            filled: true,
+            fillColor: colorScheme.surfaceVariant.withOpacity(0.5),
+            border: inputBorder,
+            enabledBorder: inputBorder,
+            focusedBorder: focusedBorder,
+          );
         }
         return Scaffold(
           body: Padding(
@@ -893,13 +946,28 @@ class _AccountPageState extends State<AccountPage> {
                 : ListView(
                     children: [
                       Container(
+                        key: const ValueKey('authHeroCard'),
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.08),
+                          gradient: LinearGradient(
+                            colors: [
+                              colorScheme.primary.withOpacity(0.18),
+                              colorScheme.secondary.withOpacity(0.12),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: colorScheme.primary.withOpacity(0.15),
+                            color: colorScheme.primary.withOpacity(0.2),
                           ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: colorScheme.primary.withOpacity(0.1),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
                         ),
                         child: Row(
                           children: [
@@ -936,72 +1004,134 @@ class _AccountPageState extends State<AccountPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      TextField(
-                        key: const ValueKey('authEmail'),
-                        controller: _emailController,
-                        decoration: const InputDecoration(
-                          labelText: 'Email',
+                      Card(
+                        key: const ValueKey('authFormCard'),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          side: BorderSide(
+                            color: colorScheme.outline.withOpacity(0.12),
+                          ),
                         ),
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _handleAuth(),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        key: const ValueKey('authPassword'),
-                        controller: _passwordController,
-                        decoration: const InputDecoration(
-                          labelText: 'Şifre',
-                        ),
-                        obscureText: true,
-                        textInputAction: TextInputAction.done,
-                        onSubmitted: (_) => _handleAuth(),
-                      ),
-                      const SizedBox(height: 16),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: _isLoading,
-                        builder: (context, isLoading, _) {
-                          return SizedBox(
-                            width: double.infinity,
-                            child: FilledButton(
-                              key: const ValueKey('authSubmit'),
-                              onPressed: isLoading ? null : _handleAuth,
-                              child: isLoading
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _isLoginMode,
+                                builder: (context, isLoginMode, _) {
+                                  return Text(
+                                    isLoginMode ? 'Tekrar hoş geldin' : 'Hadi başlayalım',
+                                    style: theme.textTheme.titleMedium,
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Hesabınla giriş yap, QR geçmişin bulutta kalsın.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color:
+                                      colorScheme.onSurface.withOpacity(0.6),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              TextField(
+                                key: const ValueKey('authEmail'),
+                                controller: _emailController,
+                                decoration:
+                                    authDecoration('Email', Icons.email_outlined),
+                                keyboardType: TextInputType.emailAddress,
+                                textInputAction: TextInputAction.next,
+                                onSubmitted: (_) => _handleAuth(),
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                key: const ValueKey('authPassword'),
+                                controller: _passwordController,
+                                decoration: authDecoration(
+                                  'Şifre',
+                                  Icons.lock_outline,
+                                ),
+                                obscureText: true,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) => _handleAuth(),
+                              ),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _isLoginMode,
+                                builder: (context, isLoginMode, _) {
+                                  if (isLoginMode) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 12),
+                                    child: TextField(
+                                      key: const ValueKey('authConfirmPassword'),
+                                      controller: _authConfirmPasswordController,
+                                      decoration: authDecoration(
+                                        'Şifre doğrulama',
+                                        Icons.lock_reset_outlined,
                                       ),
-                                    )
-                                  : ValueListenableBuilder<bool>(
-                                      valueListenable: _isLoginMode,
-                                      builder: (context, isLoginMode, _) {
-                                        return Text(
-                                          isLoginMode ? 'Giriş Yap' : 'Kayıt Ol',
-                                        );
-                                      },
+                                      obscureText: true,
+                                      textInputAction: TextInputAction.done,
+                                      onSubmitted: (_) => _handleAuth(),
                                     ),
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: _isLoginMode,
-                        builder: (context, isLoginMode, _) {
-                          return TextButton(
-                            key: const ValueKey('authToggle'),
-                            onPressed: _isLoading.value
-                                ? null
-                                : () => _isLoginMode.value = !isLoginMode,
-                            child: Text(
-                              isLoginMode
-                                  ? 'Hesabın yok mu? Kayıt Ol'
-                                  : 'Zaten hesabın var mı? Giriş Yap',
-                            ),
-                          );
-                        },
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _isLoading,
+                                builder: (context, isLoading, _) {
+                                  return SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton(
+                                      key: const ValueKey('authSubmit'),
+                                      onPressed: isLoading ? null : _handleAuth,
+                                      child: isLoading
+                                          ? const SizedBox(
+                                              width: 20,
+                                              height: 20,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : ValueListenableBuilder<bool>(
+                                              valueListenable: _isLoginMode,
+                                              builder: (context, isLoginMode, _) {
+                                                return Text(
+                                                  isLoginMode
+                                                      ? 'Giriş Yap'
+                                                      : 'Kayıt Ol',
+                                                );
+                                              },
+                                            ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 8),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _isLoginMode,
+                                builder: (context, isLoginMode, _) {
+                                  return Center(
+                                    child: TextButton(
+                                      key: const ValueKey('authToggle'),
+                                      onPressed: _isLoading.value
+                                          ? null
+                                          : () => _isLoginMode.value = !isLoginMode,
+                                      child: Text(
+                                        isLoginMode
+                                            ? 'Hesabın yok mu? Kayıt Ol'
+                                            : 'Zaten hesabın var mı? Giriş Yap',
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),

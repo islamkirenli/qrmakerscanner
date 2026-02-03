@@ -26,6 +26,12 @@ enum SocialPlatform {
   final String baseUrl;
 }
 
+enum _WifiSecurity {
+  wpaAuto,
+  wep,
+  nopass,
+}
+
 class GenerateDetailPage extends StatefulWidget {
   const GenerateDetailPage({
     super.key,
@@ -69,7 +75,8 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   late final TextEditingController _socialController;
   late final TextEditingController _ssidController;
   late final TextEditingController _passwordController;
-  String _wifiSecurity = 'WPA';
+  _WifiSecurity _wifiSecurity = _WifiSecurity.wpaAuto;
+  bool _wifiHidden = false;
   SocialPlatform _socialPlatform = SocialPlatform.instagram;
   String? _generatedPayload;
   final ValueNotifier<bool> _isDownloading = ValueNotifier<bool>(false);
@@ -229,8 +236,21 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           return null;
         }
         final password = _passwordController.text.trim();
-        final auth = _wifiSecurity;
-        return 'WIFI:T:$auth;S:$ssid;P:$password;;';
+        final auth = _wifiSecurityPayload(_wifiSecurity);
+        if (_wifiSecurity != _WifiSecurity.nopass && password.isEmpty) {
+          _showSnackBar('Şifre gerekli.');
+          return null;
+        }
+        final escapedSsid = _escapeWifiField(ssid);
+        final escapedPassword = _escapeWifiField(password);
+        final segments = <String>[
+          'WIFI:T:$auth',
+          'S:$escapedSsid',
+          if (_wifiSecurity != _WifiSecurity.nopass)
+            'P:$escapedPassword',
+          if (_wifiHidden) 'H:true',
+        ];
+        return '${segments.join(';')};;';
       case GenerateCategoryType.social:
         final input = _socialController.text.trim();
         if (input.isEmpty) {
@@ -290,6 +310,36 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       return null;
     }
     return uri.toString();
+  }
+
+  String _escapeWifiField(String value) {
+    return value
+        .replaceAll(r'\', r'\\')
+        .replaceAll(';', r'\;')
+        .replaceAll(',', r'\,')
+        .replaceAll(':', r'\:');
+  }
+
+  String _wifiSecurityLabel(_WifiSecurity security) {
+    switch (security) {
+      case _WifiSecurity.wpaAuto:
+        return 'WPA/WPA2/WPA3 (Otomatik)';
+      case _WifiSecurity.wep:
+        return 'WEP';
+      case _WifiSecurity.nopass:
+        return 'Şifresiz';
+    }
+  }
+
+  String _wifiSecurityPayload(_WifiSecurity security) {
+    switch (security) {
+      case _WifiSecurity.wpaAuto:
+        return 'WPA';
+      case _WifiSecurity.wep:
+        return 'WEP';
+      case _WifiSecurity.nopass:
+        return 'nopass';
+    }
   }
 
   void _showSnackBar(String message) {
@@ -796,18 +846,22 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
               labelText: 'Şifre',
             ),
             obscureText: true,
+            enabled: _wifiSecurity != _WifiSecurity.nopass,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _handleGenerate(),
           ),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
+          DropdownButtonFormField<_WifiSecurity>(
             key: const ValueKey('wifiSecurity'),
             value: _wifiSecurity,
-            items: const [
-              DropdownMenuItem(value: 'WPA', child: Text('WPA/WPA2')),
-              DropdownMenuItem(value: 'WEP', child: Text('WEP')),
-              DropdownMenuItem(value: 'nopass', child: Text('Şifresiz')),
-            ],
+            items: _WifiSecurity.values
+                .map(
+                  (security) => DropdownMenuItem(
+                    value: security,
+                    child: Text(_wifiSecurityLabel(security)),
+                  ),
+                )
+                .toList(),
             onChanged: (value) {
               if (value == null) {
                 return;
@@ -817,6 +871,14 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
             decoration: const InputDecoration(
               labelText: 'Güvenlik',
             ),
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile.adaptive(
+            key: const ValueKey('wifiHidden'),
+            value: _wifiHidden,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Gizli ağ (SSID yayınlanmıyor)'),
+            onChanged: (value) => setState(() => _wifiHidden = value),
           ),
         ];
       case GenerateCategoryType.social:

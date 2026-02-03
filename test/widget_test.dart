@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:qr_maker_scanner/app/app.dart';
 import 'package:qr_maker_scanner/features/scan/scan_page.dart';
 import 'package:qr_maker_scanner/features/generate/generate_category.dart';
@@ -628,7 +629,7 @@ void main() {
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
   });
 
-  testWidgets('Wi-Fi generate shows QR preview', (WidgetTester tester) async {
+  testWidgets('Wi-Fi generate shows escaped QR payload', (WidgetTester tester) async {
     await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
@@ -637,12 +638,28 @@ void main() {
     await tester.tap(find.text('Wi-Fi'));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byKey(const ValueKey('wifiSsid')), 'OfficeWifi');
-    await tester.enterText(find.byKey(const ValueKey('wifiPassword')), 'secret123');
+    await tester.tap(find.byKey(const ValueKey('wifiHidden')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('wifiSsid')),
+      'Office;Wifi',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('wifiPassword')),
+      r'pa\ss:word',
+    );
     await tester.tap(find.text('QR Oluştur'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+    final qrWidget = tester.widget<QrImageView>(
+      find.byKey(const ValueKey('generatedQrPreview')),
+    );
+    expect(
+      qrWidget.data,
+      r'WIFI:T:WPA;S:Office\;Wifi;P:pa\\ss\:word;H:true;;',
+    );
   });
 
   testWidgets('Social generate shows QR preview', (WidgetTester tester) async {

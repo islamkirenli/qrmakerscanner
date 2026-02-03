@@ -886,8 +886,8 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           TextField(
             key: const ValueKey('emailInput'),
             controller: _emailController,
-            decoration: const InputDecoration(
-              labelText: 'Email',
+            decoration: InputDecoration(
+              labelText: _requiredLabel('Email', required: true),
               hintText: 'ornek@mail.com',
             ),
             keyboardType: TextInputType.emailAddress,
@@ -897,8 +897,8 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           TextField(
             key: const ValueKey('emailSubject'),
             controller: _subjectController,
-            decoration: const InputDecoration(
-              labelText: 'Konu (opsiyonel)',
+            decoration: InputDecoration(
+              labelText: _requiredLabel('Konu', required: false),
             ),
             textInputAction: TextInputAction.next,
           ),
@@ -906,8 +906,8 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           TextField(
             key: const ValueKey('emailBody'),
             controller: _bodyController,
-            decoration: const InputDecoration(
-              labelText: 'Mesaj (opsiyonel)',
+            decoration: InputDecoration(
+              labelText: _requiredLabel('Mesaj', required: false),
             ),
             maxLines: 3,
             textInputAction: TextInputAction.done,

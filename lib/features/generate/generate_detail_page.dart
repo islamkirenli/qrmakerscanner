@@ -70,8 +70,16 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   late final TextEditingController _bodyController;
   late final TextEditingController _fullNameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _faxController;
   late final TextEditingController _vcardEmailController;
   late final TextEditingController _companyController;
+  late final TextEditingController _jobTitleController;
+  late final TextEditingController _streetController;
+  late final TextEditingController _cityController;
+  late final TextEditingController _districtController;
+  late final TextEditingController _postalCodeController;
+  late final TextEditingController _countryController;
+  late final TextEditingController _websiteController;
   late final TextEditingController _socialController;
   late final TextEditingController _ssidController;
   late final TextEditingController _passwordController;
@@ -100,8 +108,16 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _bodyController = TextEditingController();
     _fullNameController = TextEditingController();
     _phoneController = TextEditingController();
+    _faxController = TextEditingController();
     _vcardEmailController = TextEditingController();
     _companyController = TextEditingController();
+    _jobTitleController = TextEditingController();
+    _streetController = TextEditingController();
+    _cityController = TextEditingController();
+    _districtController = TextEditingController();
+    _postalCodeController = TextEditingController();
+    _countryController = TextEditingController();
+    _websiteController = TextEditingController();
     _socialController = TextEditingController();
     _ssidController = TextEditingController();
     _passwordController = TextEditingController();
@@ -115,8 +131,16 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _bodyController.dispose();
     _fullNameController.dispose();
     _phoneController.dispose();
+    _faxController.dispose();
     _vcardEmailController.dispose();
     _companyController.dispose();
+    _jobTitleController.dispose();
+    _streetController.dispose();
+    _cityController.dispose();
+    _districtController.dispose();
+    _postalCodeController.dispose();
+    _countryController.dispose();
+    _websiteController.dispose();
     _socialController.dispose();
     _ssidController.dispose();
     _passwordController.dispose();
@@ -217,15 +241,48 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           return null;
         }
         final phone = _phoneController.text.trim();
+        final fax = _faxController.text.trim();
         final email = _vcardEmailController.text.trim();
+        if (phone.isEmpty && email.isEmpty) {
+          _showSnackBar('Telefon veya email gerekli.');
+          return null;
+        }
+        if (email.isNotEmpty && !email.contains('@')) {
+          _showSnackBar('Geçerli bir email girin.');
+          return null;
+        }
         final company = _companyController.text.trim();
+        final jobTitle = _jobTitleController.text.trim();
+        final street = _streetController.text.trim();
+        final city = _cityController.text.trim();
+        final district = _districtController.text.trim();
+        final postalCode = _postalCodeController.text.trim();
+        final country = _countryController.text.trim();
+        final website = _websiteController.text.trim();
+        final normalizedWebsite =
+            website.isEmpty ? '' : (_normalizeUrl(website) ?? '');
+        if (website.isNotEmpty && normalizedWebsite.isEmpty) {
+          _showSnackBar('Geçerli bir web sitesi girin.');
+          return null;
+        }
         final lines = <String>[
           'BEGIN:VCARD',
           'VERSION:3.0',
-          'FN:$name',
-          if (company.isNotEmpty) 'ORG:$company',
-          if (phone.isNotEmpty) 'TEL:$phone',
-          if (email.isNotEmpty) 'EMAIL:$email',
+          'FN:${_escapeVCardValue(name)}',
+          'N:${_escapeVCardValue(name)};;;;',
+          if (company.isNotEmpty) 'ORG:${_escapeVCardValue(company)}',
+          if (jobTitle.isNotEmpty) 'TITLE:${_escapeVCardValue(jobTitle)}',
+          if (phone.isNotEmpty) 'TEL:${_escapeVCardValue(phone)}',
+          if (fax.isNotEmpty) 'TEL;TYPE=FAX:${_escapeVCardValue(fax)}',
+          if (email.isNotEmpty) 'EMAIL:${_escapeVCardValue(email)}',
+          if (normalizedWebsite.isNotEmpty)
+            'URL:${_escapeVCardValue(normalizedWebsite)}',
+          if (street.isNotEmpty ||
+              city.isNotEmpty ||
+              district.isNotEmpty ||
+              postalCode.isNotEmpty ||
+              country.isNotEmpty)
+            'ADR;TYPE=WORK:;;${_escapeVCardValue(street)};${_escapeVCardValue(city)};${_escapeVCardValue(district)};${_escapeVCardValue(postalCode)};${_escapeVCardValue(country)}',
           'END:VCARD',
         ];
         return lines.join('\n');
@@ -318,6 +375,60 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         .replaceAll(';', r'\;')
         .replaceAll(',', r'\,')
         .replaceAll(':', r'\:');
+  }
+
+  String _escapeVCardValue(String value) {
+    return value
+        .replaceAll(r'\', r'\\')
+        .replaceAll(';', r'\;')
+        .replaceAll(',', r'\,')
+        .replaceAll('\n', r'\n')
+        .replaceAll('\r', '');
+  }
+
+  String _requiredLabel(String label, {required bool required}) {
+    return required ? '$label *' : label;
+  }
+
+  Widget _buildSectionCard({
+    required String title,
+    required IconData icon,
+    required bool initiallyExpanded,
+    required List<Widget> children,
+  }) {
+    final theme = Theme.of(context);
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceVariant,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: theme.colorScheme.outlineVariant,
+        ),
+      ),
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: initiallyExpanded,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          leading: CircleAvatar(
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
+            child: Icon(
+              icon,
+              color: theme.colorScheme.primary,
+            ),
+          ),
+          title: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          children: children,
+        ),
+      ),
+    );
   }
 
   String _wifiSecurityLabel(_WifiSecurity security) {
@@ -789,43 +900,140 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         ];
       case GenerateCategoryType.vcard:
         return [
-          TextField(
-            key: const ValueKey('vcardName'),
-            controller: _fullNameController,
-            decoration: const InputDecoration(
-              labelText: 'Ad Soyad',
-            ),
-            textInputAction: TextInputAction.next,
+          _buildSectionCard(
+            title: 'Temel Bilgiler',
+            icon: Icons.badge_outlined,
+            initiallyExpanded: true,
+            children: [
+              TextField(
+                key: const ValueKey('vcardName'),
+                controller: _fullNameController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Ad Soyad', required: true),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardCompany'),
+                controller: _companyController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Şirket', required: false),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardJobTitle'),
+                controller: _jobTitleController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Pozisyon', required: false),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          TextField(
-            key: const ValueKey('vcardCompany'),
-            controller: _companyController,
-            decoration: const InputDecoration(
-              labelText: 'Şirket (opsiyonel)',
-            ),
-            textInputAction: TextInputAction.next,
+          _buildSectionCard(
+            title: 'İletişim',
+            icon: Icons.call_outlined,
+            initiallyExpanded: true,
+            children: [
+              TextField(
+                key: const ValueKey('vcardPhone'),
+                controller: _phoneController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Telefon', required: true),
+                ),
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardFax'),
+                controller: _faxController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Fax', required: false),
+                ),
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardEmail'),
+                controller: _vcardEmailController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Email', required: true),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardWebsite'),
+                controller: _websiteController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Web sitesi', required: false),
+                ),
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleGenerate(),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          TextField(
-            key: const ValueKey('vcardPhone'),
-            controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Telefon (opsiyonel)',
-            ),
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const ValueKey('vcardEmail'),
-            controller: _vcardEmailController,
-            decoration: const InputDecoration(
-              labelText: 'Email (opsiyonel)',
-            ),
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _handleGenerate(),
+          _buildSectionCard(
+            title: 'Adres',
+            icon: Icons.location_on_outlined,
+            initiallyExpanded: false,
+            children: [
+              TextField(
+                key: const ValueKey('vcardStreet'),
+                controller: _streetController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Cadde/Sokak', required: false),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardCity'),
+                controller: _cityController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('İl', required: false),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardDistrict'),
+                controller: _districtController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('İlçe', required: false),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardPostalCode'),
+                controller: _postalCodeController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Posta Kodu', required: false),
+                ),
+                keyboardType: TextInputType.number,
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardCountry'),
+                controller: _countryController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Ülke', required: false),
+                ),
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleGenerate(),
+              ),
+            ],
           ),
         ];
       case GenerateCategoryType.wifi:

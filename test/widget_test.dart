@@ -610,7 +610,7 @@ void main() {
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
   });
 
-  testWidgets('vCard generate shows QR preview', (WidgetTester tester) async {
+  testWidgets('vCard generate shows detailed payload', (WidgetTester tester) async {
     await tester.pumpWidget(const QrApp(isFirebaseReady: false));
 
     await tester.tap(find.text('Oluştur'));
@@ -621,12 +621,56 @@ void main() {
 
     await tester.enterText(find.byKey(const ValueKey('vcardName')), 'Ada Lovelace');
     await tester.enterText(find.byKey(const ValueKey('vcardCompany')), 'Analytical');
+    await tester.enterText(find.byKey(const ValueKey('vcardJobTitle')), 'Engineer');
     await tester.enterText(find.byKey(const ValueKey('vcardPhone')), '+90 555 123 4567');
+    await tester.enterText(find.byKey(const ValueKey('vcardFax')), '+90 212 555 0000');
     await tester.enterText(find.byKey(const ValueKey('vcardEmail')), 'ada@example.com');
+    await tester.enterText(find.byKey(const ValueKey('vcardWebsite')), 'example.com');
+    await tester.enterText(find.byKey(const ValueKey('vcardStreet')), 'Main St 12');
+    await tester.enterText(find.byKey(const ValueKey('vcardCity')), 'Istanbul');
+    await tester.enterText(find.byKey(const ValueKey('vcardDistrict')), 'Kadikoy');
+    await tester.enterText(find.byKey(const ValueKey('vcardPostalCode')), '34000');
+    await tester.enterText(find.byKey(const ValueKey('vcardCountry')), 'Turkey');
     await tester.tap(find.text('QR Oluştur'));
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+    final qrWidget = tester.widget<QrImageView>(
+      find.byKey(const ValueKey('generatedQrPreview')),
+    );
+    expect(
+      qrWidget.data,
+      [
+        'BEGIN:VCARD',
+        'VERSION:3.0',
+        'FN:Ada Lovelace',
+        'N:Ada Lovelace;;;;',
+        'ORG:Analytical',
+        'TITLE:Engineer',
+        'TEL:+90 555 123 4567',
+        'TEL;TYPE=FAX:+90 212 555 0000',
+        'EMAIL:ada@example.com',
+        'URL:https://example.com',
+        'ADR;TYPE=WORK:;;Main St 12;Istanbul;Kadikoy;34000;Turkey',
+        'END:VCARD',
+      ].join('\n'),
+    );
+  });
+
+  testWidgets('vCard requires phone or email', (WidgetTester tester) async {
+    await tester.pumpWidget(const QrApp(isFirebaseReady: false));
+
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('vCard'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byKey(const ValueKey('vcardName')), 'Ada Lovelace');
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsNothing);
   });
 
   testWidgets('Wi-Fi generate shows escaped QR payload', (WidgetTester tester) async {

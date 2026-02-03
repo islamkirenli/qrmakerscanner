@@ -13,17 +13,28 @@ import '../account/account_page.dart';
 import 'generate_category.dart';
 
 enum SocialPlatform {
-  instagram('Instagram', 'https://instagram.com/'),
-  x('X', 'https://x.com/'),
-  tiktok('TikTok', 'https://www.tiktok.com/@'),
-  linkedin('LinkedIn', 'https://www.linkedin.com/in/'),
-  youtube('YouTube', 'https://www.youtube.com/@'),
-  facebook('Facebook', 'https://www.facebook.com/');
+  instagram('Instagram', 'https://instagram.com/', Icons.camera_alt_outlined),
+  x('X', 'https://x.com/', Icons.alternate_email),
+  tiktok('TikTok', 'https://www.tiktok.com/@', Icons.music_note_outlined),
+  linkedin('LinkedIn', 'https://www.linkedin.com/in/', Icons.work_outline),
+  youtube('YouTube', 'https://www.youtube.com/@', Icons.play_circle_outline),
+  facebook('Facebook', 'https://www.facebook.com/', Icons.thumb_up_alt_outlined),
+  whatsapp('WhatsApp', 'https://wa.me/', Icons.chat_outlined),
+  telegram('Telegram', 'https://t.me/', Icons.send_outlined),
+  snapchat('Snapchat', 'https://www.snapchat.com/add/', Icons.camera_front),
+  pinterest('Pinterest', 'https://www.pinterest.com/', Icons.push_pin_outlined),
+  reddit('Reddit', 'https://www.reddit.com/user/', Icons.forum_outlined),
+  github('GitHub', 'https://github.com/', Icons.code_outlined),
+  medium('Medium', 'https://medium.com/@', Icons.article_outlined),
+  twitch('Twitch', 'https://www.twitch.tv/', Icons.videogame_asset_outlined),
+  discord('Discord', 'https://discord.com/users/', Icons.headset_mic_outlined),
+  spotify('Spotify', 'https://open.spotify.com/user/', Icons.music_note);
 
-  const SocialPlatform(this.label, this.baseUrl);
+  const SocialPlatform(this.label, this.baseUrl, this.icon);
 
   final String label;
   final String baseUrl;
+  final IconData icon;
 }
 
 enum _WifiSecurity {
@@ -1105,28 +1116,42 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         ];
       case GenerateCategoryType.social:
         return [
-          DropdownButtonFormField<SocialPlatform>(
-            key: const ValueKey('socialPlatform'),
-            value: _socialPlatform,
-            items: SocialPlatform.values
-                .map(
-                  (platform) => DropdownMenuItem(
-                    value: platform,
-                    child: Text(platform.label),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) {
-              if (value == null) {
-                return;
-              }
-              setState(() => _socialPlatform = value);
-            },
-            decoration: const InputDecoration(
-              labelText: 'Platform',
-            ),
+          _buildSectionCard(
+            title: 'Platform Seç',
+            icon: Icons.public,
+            initiallyExpanded: true,
+            children: [
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: SocialPlatform.values.map((platform) {
+                  final selected = _socialPlatform == platform;
+                  return ChoiceChip(
+                    key: ValueKey('socialPlatform_${platform.name}'),
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          platform.icon,
+                          size: 18,
+                          color: selected
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(platform.label),
+                      ],
+                    ),
+                    selected: selected,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+                    selectedColor: Theme.of(context).colorScheme.primary,
+                    onSelected: (_) => setState(() => _socialPlatform = platform),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             key: const ValueKey('socialUsername'),
             controller: _socialController,

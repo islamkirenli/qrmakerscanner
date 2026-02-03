@@ -35,6 +35,7 @@ abstract class DocumentStorageService {
     Uint8List? bytes,
     Stream<List<int>>? readStream,
     String? contentType,
+    String? folder,
     ValueChanged<double>? onProgress,
   });
 }
@@ -52,6 +53,7 @@ class FirebaseDocumentStorageService implements DocumentStorageService {
     Uint8List? bytes,
     Stream<List<int>>? readStream,
     String? contentType,
+    String? folder,
     ValueChanged<double>? onProgress,
   }) async {
     final user = _authService.currentUser;
@@ -61,7 +63,9 @@ class FirebaseDocumentStorageService implements DocumentStorageService {
     final safeName = _sanitizeFileName(name);
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final objectPath = '${user.id}/$timestamp-$safeName';
-    final storageRef = _storage.ref().child('documents/$objectPath');
+    final targetFolder =
+        (folder == null || folder.trim().isEmpty) ? 'documents' : folder.trim();
+    final storageRef = _storage.ref().child('$targetFolder/$objectPath');
     try {
       final metadata = SettableMetadata(
         contentType: contentType ?? 'application/octet-stream',
@@ -165,6 +169,7 @@ class DisabledDocumentStorageService implements DocumentStorageService {
     Uint8List? bytes,
     Stream<List<int>>? readStream,
     String? contentType,
+    String? folder,
     ValueChanged<double>? onProgress,
   }) async {
     return const DocumentUploadResult.error('Firebase yapılandırılmadı.');
@@ -176,6 +181,7 @@ class FakeDocumentStorageService implements DocumentStorageService {
   String? lastPath;
   Uint8List? lastBytes;
   String? lastContentType;
+  String? lastFolder;
 
   @override
   Future<DocumentUploadResult> uploadDocument({
@@ -184,12 +190,14 @@ class FakeDocumentStorageService implements DocumentStorageService {
     Uint8List? bytes,
     Stream<List<int>>? readStream,
     String? contentType,
+    String? folder,
     ValueChanged<double>? onProgress,
   }) async {
     lastName = name;
     lastPath = path;
     lastBytes = bytes;
     lastContentType = contentType;
+    lastFolder = folder;
     onProgress?.call(1);
     return const DocumentUploadResult.ok(
       downloadUrl: 'https://example.com/document.pdf',

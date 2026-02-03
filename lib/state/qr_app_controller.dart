@@ -94,6 +94,7 @@ class QrAppController extends ChangeNotifier {
     Uint8List? bytes,
     Stream<List<int>>? readStream,
     String? contentType,
+    String? folder,
     ValueChanged<double>? onProgress,
   }) {
     return _documentStorageService.uploadDocument(
@@ -102,6 +103,7 @@ class QrAppController extends ChangeNotifier {
       bytes: bytes,
       readStream: readStream,
       contentType: contentType,
+      folder: folder,
       onProgress: onProgress,
     );
   }

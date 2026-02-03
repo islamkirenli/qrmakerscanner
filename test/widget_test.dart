@@ -9,6 +9,7 @@ import 'package:qr_maker_scanner/models/user_profile.dart';
 import 'package:qr_maker_scanner/state/auth_service.dart';
 import 'package:qr_maker_scanner/state/document_picker_service.dart';
 import 'package:qr_maker_scanner/state/document_storage_service.dart';
+import 'package:qr_maker_scanner/state/image_picker_service.dart';
 import 'package:qr_maker_scanner/state/profile_service.dart';
 import 'package:qr_maker_scanner/state/qr_app_controller.dart';
 import 'package:qr_maker_scanner/state/qr_image_saver.dart';
@@ -46,6 +47,29 @@ void main() {
         return const DocumentPickResult.error('Doküman seçilemedi.');
       }
       return DocumentPickResult.ok(document);
+    }
+  }
+
+  class FakeImagePickerService extends ImagePickerService {
+    FakeImagePickerService({
+      required this.image,
+      this.cancelled = false,
+      this.hasError = false,
+    });
+
+    final PickedImage image;
+    final bool cancelled;
+    final bool hasError;
+
+    @override
+    Future<ImagePickResult> pickImage() async {
+      if (cancelled) {
+        return const ImagePickResult.cancelled();
+      }
+      if (hasError) {
+        return const ImagePickResult.error('Görsel seçilemedi.');
+      }
+      return ImagePickResult.ok(image);
     }
   }
 
@@ -212,6 +236,50 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Doküman yüklendi.'), findsOneWidget);
+
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+  });
+
+  testWidgets('Image picker uploads and generates QR',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+    final controller = QrAppController(
+      authService: auth,
+      storageService: FakeQrStorageService(),
+      documentStorageService: FakeDocumentStorageService(),
+      profileService: FakeProfileService(),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QrControllerScope(
+          controller: controller,
+          child: GenerateDetailPage(
+            category: generateCategories
+                .firstWhere((item) => item.type == GenerateCategoryType.image),
+            imagePicker: FakeImagePickerService(
+              image: PickedImage(
+                name: 'photo.png',
+                size: 1200,
+                bytes: Uint8List.fromList([1, 2, 3]),
+                extension: 'png',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('imagePickerButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Görsel yüklendi.'), findsOneWidget);
 
     await tester.tap(find.text('QR Oluştur'));
     await tester.pumpAndSettle();

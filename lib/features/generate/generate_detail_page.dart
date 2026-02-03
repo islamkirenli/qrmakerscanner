@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../app/controller_scope.dart';
 import '../../state/document_picker_service.dart';
+import '../../state/image_picker_service.dart';
 import '../../state/qr_image_saver.dart';
 import '../account/account_page.dart';
 import 'generate_category.dart';
@@ -31,11 +32,13 @@ class GenerateDetailPage extends StatefulWidget {
     required this.category,
     this.imageSaver,
     this.documentPicker,
+    this.imagePicker,
   });
 
   final GenerateCategoryInfo category;
   final QrImageSaver? imageSaver;
   final DocumentPickerService? documentPicker;
+  final ImagePickerService? imagePicker;
 
   @override
   State<GenerateDetailPage> createState() => _GenerateDetailPageState();
@@ -52,6 +55,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     GenerateCategoryType.wifi,
     GenerateCategoryType.social,
     GenerateCategoryType.document,
+    GenerateCategoryType.image,
   };
 
   late final TextEditingController _textController;
@@ -71,14 +75,18 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   final ValueNotifier<bool> _isDownloading = ValueNotifier<bool>(false);
   final ValueNotifier<DocumentUploadState> _documentUploadState =
       ValueNotifier<DocumentUploadState>(const DocumentUploadState.idle());
+  final ValueNotifier<DocumentUploadState> _imageUploadState =
+      ValueNotifier<DocumentUploadState>(const DocumentUploadState.idle());
   late final QrImageSaver _imageSaver;
   late final DocumentPickerService _documentPicker;
+  late final ImagePickerService _imagePicker;
 
   @override
   void initState() {
     super.initState();
     _imageSaver = widget.imageSaver ?? const GalleryQrImageSaver();
     _documentPicker = widget.documentPicker ?? DocumentPickerService();
+    _imagePicker = widget.imagePicker ?? ImagePickerService();
     _textController = TextEditingController();
     _emailController = TextEditingController();
     _subjectController = TextEditingController();
@@ -107,6 +115,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _passwordController.dispose();
     _isDownloading.dispose();
     _documentUploadState.dispose();
+    _imageUploadState.dispose();
     super.dispose();
   }
 
@@ -133,6 +142,11 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   void _handleGenerate() {
     if (widget.category.type == GenerateCategoryType.document &&
         _documentUploadState.value.isLoading) {
+      _showSnackBar('Yükleme tamamlanmadan QR oluşturulamaz.');
+      return;
+    }
+    if (widget.category.type == GenerateCategoryType.image &&
+        _imageUploadState.value.isLoading) {
       _showSnackBar('Yükleme tamamlanmadan QR oluşturulamaz.');
       return;
     }
@@ -246,16 +260,17 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         }
         return downloadUrl;
       case GenerateCategoryType.image:
-        final text = _textController.text.trim();
-        if (text.isEmpty) {
-          _showSnackBar('Bağlantı boş olamaz.');
+        final state = _imageUploadState.value;
+        if (state.isLoading) {
+          _showSnackBar('Yükleme devam ediyor.');
           return null;
         }
-        if (!text.startsWith('http://') && !text.startsWith('https://')) {
-          _showSnackBar('Bağlantı http:// veya https:// ile başlamalı.');
+        final downloadUrl = state.downloadUrl;
+        if (downloadUrl == null || downloadUrl.isEmpty) {
+          _showSnackBar('Önce görsel yükleyin.');
           return null;
         }
-        return text;
+        return downloadUrl;
     }
   }
 
@@ -283,7 +298,11 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
 
   bool _canGenerateForCategory(GenerateCategoryType type) {
     if (type != GenerateCategoryType.document) {
-      return true;
+      if (type != GenerateCategoryType.image) {
+        return true;
+      }
+      final state = _imageUploadState.value;
+      return !state.isLoading && state.downloadUrl != null;
     }
     final state = _documentUploadState.value;
     return !state.isLoading && state.downloadUrl != null;
@@ -329,6 +348,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       bytes: document.bytes,
       readStream: document.readStream,
       contentType: _mapContentType(document.extension),
+      folder: 'documents',
       onProgress: (value) {
         if (!mounted) {
           return;
@@ -360,6 +380,78 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _showSnackBar('Doküman yüklendi.');
   }
 
+  Future<void> _pickAndUploadImage() async {
+    if (_imageUploadState.value.isLoading) {
+      return;
+    }
+    _imageUploadState.value =
+        const DocumentUploadState.uploading(fileName: null, progress: 0);
+    final pickResult = await _imagePicker.pickImage();
+    if (!mounted) {
+      return;
+    }
+    if (pickResult.isCancelled) {
+      _imageUploadState.value = const DocumentUploadState.idle();
+      return;
+    }
+    if (!pickResult.ok || pickResult.image == null) {
+      final detail = pickResult.message ?? 'Görsel seçilemedi.';
+      debugPrint('Image pick failed: $detail');
+      const message = 'Görsel seçilemedi. Lütfen tekrar deneyin.';
+      _imageUploadState.value = const DocumentUploadState.error(message);
+      _showSnackBar(message);
+      return;
+    }
+    final image = pickResult.image!;
+    if (image.size > _maxDocumentBytes) {
+      const message = 'Dosya boyutu 15 MB sınırını aşıyor.';
+      _imageUploadState.value = const DocumentUploadState.error(message);
+      _showSnackBar(message);
+      return;
+    }
+    _imageUploadState.value = DocumentUploadState.uploading(
+      fileName: image.name,
+      progress: 0,
+    );
+    final controller = QrControllerScope.of(context);
+    final uploadResult = await controller.uploadDocument(
+      name: image.name,
+      path: image.path,
+      bytes: image.bytes,
+      readStream: image.readStream,
+      contentType: _mapImageContentType(image.extension),
+      folder: 'images',
+      onProgress: (value) {
+        if (!mounted) {
+          return;
+        }
+        final progress =
+            value.isNaN ? 0.0 : value.clamp(0.0, 1.0).toDouble();
+        _imageUploadState.value = DocumentUploadState.uploading(
+          fileName: image.name,
+          progress: progress,
+        );
+      },
+    );
+    if (!mounted) {
+      return;
+    }
+    if (!uploadResult.ok || uploadResult.downloadUrl == null) {
+      final detail = uploadResult.message ?? 'Yükleme başarısız.';
+      debugPrint('Image upload failed: $detail');
+      const message = 'Yükleme sırasında hata oluştu.';
+      _imageUploadState.value = const DocumentUploadState.error(message);
+      _showSnackBar(message);
+      return;
+    }
+    _generatedPayload = null;
+    _imageUploadState.value = DocumentUploadState.ready(
+      fileName: image.name,
+      downloadUrl: uploadResult.downloadUrl!,
+    );
+    _showSnackBar('Görsel yüklendi.');
+  }
+
   String _mapContentType(String? extension) {
     switch (extension?.toLowerCase()) {
       case 'pdf':
@@ -378,6 +470,24 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
       case 'txt':
         return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  String _mapImageContentType(String? extension) {
+    switch (extension?.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
       default:
         return 'application/octet-stream';
     }
@@ -453,11 +563,21 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
             ),
             const SizedBox(height: 16),
           ],
+          if (category.type == GenerateCategoryType.image) ...[
+            _ImagePickerSection(
+              stateListenable: _imageUploadState,
+              onPick: _pickAndUploadImage,
+            ),
+            const SizedBox(height: 16),
+          ],
           ..._buildForm(category.type),
           const SizedBox(height: 16),
-          if (category.type == GenerateCategoryType.document)
+          if (category.type == GenerateCategoryType.document ||
+              category.type == GenerateCategoryType.image)
             ValueListenableBuilder<DocumentUploadState>(
-              valueListenable: _documentUploadState,
+              valueListenable: category.type == GenerateCategoryType.document
+                  ? _documentUploadState
+                  : _imageUploadState,
               builder: (context, state, _) {
                 return FilledButton.icon(
                   onPressed: _canGenerateForCategory(category.type)
@@ -736,18 +856,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       case GenerateCategoryType.document:
         return const [];
       case GenerateCategoryType.image:
-        return [
-          TextField(
-            controller: _textController,
-            decoration: const InputDecoration(
-              labelText: 'Bağlantı',
-              hintText: 'https://example.com',
-            ),
-            keyboardType: TextInputType.url,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _handleGenerate(),
-          ),
-        ];
+        return const [];
     }
   }
 }
@@ -827,6 +936,82 @@ class _DocumentPickerSection extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
                 tooltip: 'Doküman seç',
+              ),
+            ),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              helper,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: state.errorMessage == null
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _GenerateDetailPageState._maxDocumentLabel,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (state.isLoading) ...[
+              const SizedBox(height: 12),
+              LinearProgressIndicator(value: state.progress),
+              const SizedBox(height: 6),
+              Text(
+                '%${((state.progress ?? 0) * 100).round()}',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ImagePickerSection extends StatelessWidget {
+  const _ImagePickerSection({
+    required this.stateListenable,
+    required this.onPick,
+  });
+
+  final ValueListenable<DocumentUploadState> stateListenable;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<DocumentUploadState>(
+      valueListenable: stateListenable,
+      builder: (context, state, _) {
+        final theme = Theme.of(context);
+        final label = state.isLoading
+            ? 'Yükleniyor...'
+            : state.downloadUrl != null
+                ? 'Görsel Yüklendi'
+                : 'Görsel Seç';
+        final helper = state.errorMessage ?? state.fileName ?? 'Görsel seçin';
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: IconButton(
+                key: const ValueKey('imagePickerButton'),
+                iconSize: 72,
+                onPressed: state.isLoading ? null : onPick,
+                icon: Icon(
+                  Icons.image_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                tooltip: 'Görsel seç',
               ),
             ),
             Text(

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../features/home/home_page.dart';
 import '../state/auth_service.dart';
+import '../state/document_storage_service.dart';
 import '../state/qr_storage_service.dart';
 import '../state/qr_app_controller.dart';
 import '../state/profile_service.dart';
@@ -16,12 +17,14 @@ class QrApp extends StatefulWidget {
     required this.isFirebaseReady,
     this.authServiceOverride,
     this.storageServiceOverride,
+    this.documentStorageServiceOverride,
     this.profileServiceOverride,
   });
 
   final bool isFirebaseReady;
   final AuthService? authServiceOverride;
   final QrStorageService? storageServiceOverride;
+  final DocumentStorageService? documentStorageServiceOverride;
   final ProfileService? profileServiceOverride;
 
   @override
@@ -32,6 +35,7 @@ class _QrAppState extends State<QrApp> {
   late final QrAppController _controller;
   late final AuthService _authService;
   late final QrStorageService _storageService;
+  late final DocumentStorageService _documentStorageService;
   late final ProfileService _profileService;
 
   @override
@@ -60,6 +64,18 @@ class _QrAppState extends State<QrApp> {
     } else {
       _storageService = DisabledQrStorageService();
     }
+    if (widget.documentStorageServiceOverride != null) {
+      _documentStorageService = widget.documentStorageServiceOverride!;
+    } else if (isTest) {
+      _documentStorageService = FakeDocumentStorageService();
+    } else if (widget.isFirebaseReady) {
+      _documentStorageService = FirebaseDocumentStorageService(
+        FirebaseStorage.instance,
+        _authService,
+      );
+    } else {
+      _documentStorageService = DisabledDocumentStorageService();
+    }
     if (widget.profileServiceOverride != null) {
       _profileService = widget.profileServiceOverride!;
     } else if (isTest) {
@@ -72,6 +88,7 @@ class _QrAppState extends State<QrApp> {
     _controller = QrAppController(
       authService: _authService,
       storageService: _storageService,
+      documentStorageService: _documentStorageService,
       profileService: _profileService,
     );
   }

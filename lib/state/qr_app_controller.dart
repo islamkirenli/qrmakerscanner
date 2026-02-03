@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'auth_service.dart';
+import 'document_storage_service.dart';
 import 'qr_storage_service.dart';
 import 'profile_service.dart';
 import '../models/qr_record.dart';
@@ -34,9 +35,11 @@ class QrAppController extends ChangeNotifier {
   QrAppController({
     required AuthService authService,
     required QrStorageService storageService,
+    required DocumentStorageService documentStorageService,
     required ProfileService profileService,
   })  : _authService = authService,
         _storageService = storageService,
+        _documentStorageService = documentStorageService,
         _profileService = profileService,
         tabIndexListenable = ValueNotifier<int>(0) {
     _currentUser = _authService.currentUser;
@@ -47,6 +50,7 @@ class QrAppController extends ChangeNotifier {
   final ValueNotifier<int> tabIndexListenable;
   final AuthService _authService;
   final QrStorageService _storageService;
+  final DocumentStorageService _documentStorageService;
   final ProfileService _profileService;
   late final StreamSubscription<AuthUser?> _authSubscription;
   StreamSubscription<List<SavedQrRecord>>? _historySubscription;
@@ -83,6 +87,24 @@ class QrAppController extends ChangeNotifier {
   int get selectedCount => _selectedIds.length;
 
   bool isSelected(String id) => _selectedIds.contains(id);
+
+  Future<DocumentUploadResult> uploadDocument({
+    required String name,
+    String? path,
+    Uint8List? bytes,
+    Stream<List<int>>? readStream,
+    String? contentType,
+    ValueChanged<double>? onProgress,
+  }) {
+    return _documentStorageService.uploadDocument(
+      name: name,
+      path: path,
+      bytes: bytes,
+      readStream: readStream,
+      contentType: contentType,
+      onProgress: onProgress,
+    );
+  }
 
   void setTabIndex(int value) {
     if (value == tabIndexListenable.value) {

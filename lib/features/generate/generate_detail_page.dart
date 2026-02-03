@@ -1,10 +1,12 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../app/controller_scope.dart';
+import '../../state/document_picker_service.dart';
 import '../../state/qr_image_saver.dart';
 import '../account/account_page.dart';
 import 'generate_category.dart';
@@ -28,16 +30,30 @@ class GenerateDetailPage extends StatefulWidget {
     super.key,
     required this.category,
     this.imageSaver,
+    this.documentPicker,
   });
 
   final GenerateCategoryInfo category;
   final QrImageSaver? imageSaver;
+  final DocumentPickerService? documentPicker;
 
   @override
   State<GenerateDetailPage> createState() => _GenerateDetailPageState();
 }
 
 class _GenerateDetailPageState extends State<GenerateDetailPage> {
+  static const int _maxDocumentBytes = 15 * 1024 * 1024;
+  static const String _maxDocumentLabel = 'Maksimum 15 MB';
+  static const _documentPreviewTypes = {
+    GenerateCategoryType.text,
+    GenerateCategoryType.url,
+    GenerateCategoryType.email,
+    GenerateCategoryType.vcard,
+    GenerateCategoryType.wifi,
+    GenerateCategoryType.social,
+    GenerateCategoryType.document,
+  };
+
   late final TextEditingController _textController;
   late final TextEditingController _emailController;
   late final TextEditingController _subjectController;
@@ -53,12 +69,16 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   SocialPlatform _socialPlatform = SocialPlatform.instagram;
   String? _generatedPayload;
   final ValueNotifier<bool> _isDownloading = ValueNotifier<bool>(false);
+  final ValueNotifier<DocumentUploadState> _documentUploadState =
+      ValueNotifier<DocumentUploadState>(const DocumentUploadState.idle());
   late final QrImageSaver _imageSaver;
+  late final DocumentPickerService _documentPicker;
 
   @override
   void initState() {
     super.initState();
     _imageSaver = widget.imageSaver ?? const GalleryQrImageSaver();
+    _documentPicker = widget.documentPicker ?? DocumentPickerService();
     _textController = TextEditingController();
     _emailController = TextEditingController();
     _subjectController = TextEditingController();
@@ -86,6 +106,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _ssidController.dispose();
     _passwordController.dispose();
     _isDownloading.dispose();
+    _documentUploadState.dispose();
     super.dispose();
   }
 
@@ -110,6 +131,11 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   }
 
   void _handleGenerate() {
+    if (widget.category.type == GenerateCategoryType.document &&
+        _documentUploadState.value.isLoading) {
+      _showSnackBar('Yükleme tamamlanmadan QR oluşturulamaz.');
+      return;
+    }
     final payload = _buildPayload();
     if (payload == null) {
       return;
@@ -120,12 +146,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       _showSnackBar(result.message ?? 'Bilinmeyen hata.');
       return;
     }
-    if (widget.category.type == GenerateCategoryType.text ||
-        widget.category.type == GenerateCategoryType.url ||
-        widget.category.type == GenerateCategoryType.email ||
-        widget.category.type == GenerateCategoryType.vcard ||
-        widget.category.type == GenerateCategoryType.wifi ||
-        widget.category.type == GenerateCategoryType.social) {
+    if (_documentPreviewTypes.contains(widget.category.type)) {
       setState(() => _generatedPayload = payload);
     }
   }
@@ -213,6 +234,17 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         }
         return '${_socialPlatform.baseUrl}$normalized';
       case GenerateCategoryType.document:
+        final state = _documentUploadState.value;
+        if (state.isLoading) {
+          _showSnackBar('Yükleme devam ediyor.');
+          return null;
+        }
+        final downloadUrl = state.downloadUrl;
+        if (downloadUrl == null || downloadUrl.isEmpty) {
+          _showSnackBar('Önce dokümanı yükleyin.');
+          return null;
+        }
+        return downloadUrl;
       case GenerateCategoryType.image:
         final text = _textController.text.trim();
         if (text.isEmpty) {
@@ -247,6 +279,108 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  bool _canGenerateForCategory(GenerateCategoryType type) {
+    if (type != GenerateCategoryType.document) {
+      return true;
+    }
+    final state = _documentUploadState.value;
+    return !state.isLoading && state.downloadUrl != null;
+  }
+
+  Future<void> _pickAndUploadDocument() async {
+    if (_documentUploadState.value.isLoading) {
+      return;
+    }
+    _documentUploadState.value =
+        const DocumentUploadState.uploading(fileName: null, progress: 0);
+    final pickResult = await _documentPicker.pickDocument();
+    if (!mounted) {
+      return;
+    }
+    if (pickResult.isCancelled) {
+      _documentUploadState.value = const DocumentUploadState.idle();
+      return;
+    }
+    if (!pickResult.ok || pickResult.document == null) {
+      final detail = pickResult.message ?? 'Doküman seçilemedi.';
+      debugPrint('Document pick failed: $detail');
+      const message = 'Doküman seçilemedi. Lütfen tekrar deneyin.';
+      _documentUploadState.value = const DocumentUploadState.error(message);
+      _showSnackBar(message);
+      return;
+    }
+    final document = pickResult.document!;
+    if (document.size > _maxDocumentBytes) {
+      const message = 'Dosya boyutu 15 MB sınırını aşıyor.';
+      _documentUploadState.value = const DocumentUploadState.error(message);
+      _showSnackBar(message);
+      return;
+    }
+    _documentUploadState.value = DocumentUploadState.uploading(
+      fileName: document.name,
+      progress: 0,
+    );
+    final controller = QrControllerScope.of(context);
+    final uploadResult = await controller.uploadDocument(
+      name: document.name,
+      path: document.path,
+      bytes: document.bytes,
+      readStream: document.readStream,
+      contentType: _mapContentType(document.extension),
+      onProgress: (value) {
+        if (!mounted) {
+          return;
+        }
+        final progress =
+            value.isNaN ? 0.0 : value.clamp(0.0, 1.0).toDouble();
+        _documentUploadState.value = DocumentUploadState.uploading(
+          fileName: document.name,
+          progress: progress,
+        );
+      },
+    );
+    if (!mounted) {
+      return;
+    }
+    if (!uploadResult.ok || uploadResult.downloadUrl == null) {
+      final detail = uploadResult.message ?? 'Yükleme başarısız.';
+      debugPrint('Document upload failed: $detail');
+      const message = 'Yükleme sırasında hata oluştu.';
+      _documentUploadState.value = const DocumentUploadState.error(message);
+      _showSnackBar(message);
+      return;
+    }
+    _generatedPayload = null;
+    _documentUploadState.value = DocumentUploadState.ready(
+      fileName: document.name,
+      downloadUrl: uploadResult.downloadUrl!,
+    );
+    _showSnackBar('Doküman yüklendi.');
+  }
+
+  String _mapContentType(String? extension) {
+    switch (extension?.toLowerCase()) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'doc':
+        return 'application/msword';
+      case 'docx':
+        return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'xls':
+        return 'application/vnd.ms-excel';
+      case 'xlsx':
+        return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      case 'ppt':
+        return 'application/vnd.ms-powerpoint';
+      case 'pptx':
+        return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   Future<void> _showSaveDialog(String payload) async {
@@ -312,19 +446,35 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (category.type == GenerateCategoryType.document) ...[
+            _DocumentPickerSection(
+              stateListenable: _documentUploadState,
+              onPick: _pickAndUploadDocument,
+            ),
+            const SizedBox(height: 16),
+          ],
           ..._buildForm(category.type),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _handleGenerate,
-            icon: const Icon(Icons.qr_code_2),
-            label: const Text('QR Oluştur'),
-          ),
-          if ((category.type == GenerateCategoryType.text ||
-                  category.type == GenerateCategoryType.url ||
-                  category.type == GenerateCategoryType.email ||
-                  category.type == GenerateCategoryType.vcard ||
-                  category.type == GenerateCategoryType.wifi ||
-                  category.type == GenerateCategoryType.social) &&
+          if (category.type == GenerateCategoryType.document)
+            ValueListenableBuilder<DocumentUploadState>(
+              valueListenable: _documentUploadState,
+              builder: (context, state, _) {
+                return FilledButton.icon(
+                  onPressed: _canGenerateForCategory(category.type)
+                      ? _handleGenerate
+                      : null,
+                  icon: const Icon(Icons.qr_code_2),
+                  label: const Text('QR Oluştur'),
+                );
+              },
+            )
+          else
+            FilledButton.icon(
+              onPressed: _handleGenerate,
+              icon: const Icon(Icons.qr_code_2),
+              label: const Text('QR Oluştur'),
+            ),
+          if (_documentPreviewTypes.contains(category.type) &&
               _generatedPayload != null) ...[
             const SizedBox(height: 24),
             Text(
@@ -584,6 +734,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
         ];
       case GenerateCategoryType.document:
+        return const [];
       case GenerateCategoryType.image:
         return [
           TextField(
@@ -598,6 +749,123 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           ),
         ];
     }
+  }
+}
+
+class DocumentUploadState {
+  const DocumentUploadState._({
+    required this.isLoading,
+    this.fileName,
+    this.downloadUrl,
+    this.errorMessage,
+    this.progress,
+  });
+
+  final bool isLoading;
+  final String? fileName;
+  final String? downloadUrl;
+  final String? errorMessage;
+  final double? progress;
+
+  const DocumentUploadState.idle()
+      : this._(isLoading: false);
+
+  const DocumentUploadState.uploading({
+    required String? fileName,
+    required double progress,
+  }) : this._(
+          isLoading: true,
+          fileName: fileName,
+          progress: progress,
+        );
+
+  const DocumentUploadState.ready({
+    required String fileName,
+    required String downloadUrl,
+  }) : this._(
+          isLoading: false,
+          fileName: fileName,
+          downloadUrl: downloadUrl,
+          progress: 1,
+        );
+
+  const DocumentUploadState.error(String message)
+      : this._(isLoading: false, errorMessage: message);
+}
+
+class _DocumentPickerSection extends StatelessWidget {
+  const _DocumentPickerSection({
+    required this.stateListenable,
+    required this.onPick,
+  });
+
+  final ValueListenable<DocumentUploadState> stateListenable;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<DocumentUploadState>(
+      valueListenable: stateListenable,
+      builder: (context, state, _) {
+        final theme = Theme.of(context);
+        final label = state.isLoading
+            ? 'Yükleniyor...'
+            : state.downloadUrl != null
+                ? 'Doküman Yüklendi'
+                : 'Doküman Seç';
+        final helper = state.errorMessage ?? state.fileName ?? 'Dosya seçin';
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: IconButton(
+                key: const ValueKey('documentPickerButton'),
+                iconSize: 72,
+                onPressed: state.isLoading ? null : onPick,
+                icon: Icon(
+                  Icons.insert_drive_file,
+                  color: theme.colorScheme.primary,
+                ),
+                tooltip: 'Doküman seç',
+              ),
+            ),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              helper,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: state.errorMessage == null
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.colorScheme.error,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _GenerateDetailPageState._maxDocumentLabel,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (state.isLoading) ...[
+              const SizedBox(height: 12),
+              LinearProgressIndicator(value: state.progress),
+              const SizedBox(height: 6),
+              Text(
+                '%${((state.progress ?? 0) * 100).round()}',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ],
+        );
+      },
+    );
   }
 }
 

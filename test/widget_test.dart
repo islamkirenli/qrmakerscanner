@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qr_maker_scanner/app/app.dart';
 import 'package:qr_maker_scanner/features/scan/scan_page.dart';
@@ -5,6 +7,8 @@ import 'package:qr_maker_scanner/features/generate/generate_category.dart';
 import 'package:qr_maker_scanner/features/generate/generate_detail_page.dart';
 import 'package:qr_maker_scanner/models/user_profile.dart';
 import 'package:qr_maker_scanner/state/auth_service.dart';
+import 'package:qr_maker_scanner/state/document_picker_service.dart';
+import 'package:qr_maker_scanner/state/document_storage_service.dart';
 import 'package:qr_maker_scanner/state/profile_service.dart';
 import 'package:qr_maker_scanner/state/qr_app_controller.dart';
 import 'package:qr_maker_scanner/state/qr_image_saver.dart';
@@ -19,6 +23,29 @@ void main() {
     Future<SaveResult> saveToGallery({required String payload}) async {
       callCount += 1;
       return const SaveResult.ok('Kaydedildi.');
+    }
+  }
+
+  class FakeDocumentPickerService extends DocumentPickerService {
+    FakeDocumentPickerService({
+      required this.document,
+      this.cancelled = false,
+      this.hasError = false,
+    });
+
+    final PickedDocument document;
+    final bool cancelled;
+    final bool hasError;
+
+    @override
+    Future<DocumentPickResult> pickDocument() async {
+      if (cancelled) {
+        return const DocumentPickResult.cancelled();
+      }
+      if (hasError) {
+        return const DocumentPickResult.error('Doküman seçilemedi.');
+      }
+      return DocumentPickResult.ok(document);
     }
   }
 
@@ -117,6 +144,7 @@ void main() {
     final controller = QrAppController(
       authService: FakeAuthService(),
       storageService: FakeQrStorageService(),
+      documentStorageService: FakeDocumentStorageService(),
       profileService: FakeProfileService(),
     );
     final saver = FakeQrImageSaver();
@@ -144,6 +172,92 @@ void main() {
 
     expect(saver.callCount, 1);
     expect(find.text('Kaydedildi.'), findsOneWidget);
+  });
+
+  testWidgets('Document picker uploads and generates QR',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+    final controller = QrAppController(
+      authService: auth,
+      storageService: FakeQrStorageService(),
+      documentStorageService: FakeDocumentStorageService(),
+      profileService: FakeProfileService(),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QrControllerScope(
+          controller: controller,
+          child: GenerateDetailPage(
+            category: generateCategories
+                .firstWhere((item) => item.type == GenerateCategoryType.document),
+            documentPicker: FakeDocumentPickerService(
+              document: PickedDocument(
+                name: 'test.pdf',
+                size: 1200,
+                bytes: Uint8List.fromList([1, 2, 3]),
+                extension: 'pdf',
+                readStream: null,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('documentPickerButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Doküman yüklendi.'), findsOneWidget);
+
+    await tester.tap(find.text('QR Oluştur'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsOneWidget);
+  });
+
+  testWidgets('Document picker blocks files larger than 15 MB',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await auth.signInWithEmailPassword(
+      email: 'user@example.com',
+      password: 'password123',
+    );
+    final controller = QrAppController(
+      authService: auth,
+      storageService: FakeQrStorageService(),
+      documentStorageService: FakeDocumentStorageService(),
+      profileService: FakeProfileService(),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QrControllerScope(
+          controller: controller,
+          child: GenerateDetailPage(
+            category: generateCategories
+                .firstWhere((item) => item.type == GenerateCategoryType.document),
+            documentPicker: FakeDocumentPickerService(
+              document: PickedDocument(
+                name: 'big.pdf',
+                size: 16 * 1024 * 1024,
+                bytes: Uint8List.fromList([1, 2, 3]),
+                extension: 'pdf',
+                readStream: null,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('documentPickerButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dosya boyutu 15 MB sınırını aşıyor.'), findsOneWidget);
+    expect(find.byKey(const ValueKey('generatedQrPreview')), findsNothing);
   });
 
   testWidgets('Profile name save updates header',

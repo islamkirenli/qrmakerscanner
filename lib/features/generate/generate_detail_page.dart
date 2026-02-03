@@ -75,6 +75,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
   late final TextEditingController _companyController;
   late final TextEditingController _jobTitleController;
   late final TextEditingController _streetController;
+  late final TextEditingController _neighborhoodController;
   late final TextEditingController _cityController;
   late final TextEditingController _districtController;
   late final TextEditingController _postalCodeController;
@@ -113,6 +114,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _companyController = TextEditingController();
     _jobTitleController = TextEditingController();
     _streetController = TextEditingController();
+    _neighborhoodController = TextEditingController();
     _cityController = TextEditingController();
     _districtController = TextEditingController();
     _postalCodeController = TextEditingController();
@@ -136,6 +138,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
     _companyController.dispose();
     _jobTitleController.dispose();
     _streetController.dispose();
+    _neighborhoodController.dispose();
     _cityController.dispose();
     _districtController.dispose();
     _postalCodeController.dispose();
@@ -254,6 +257,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         final company = _companyController.text.trim();
         final jobTitle = _jobTitleController.text.trim();
         final street = _streetController.text.trim();
+        final neighborhood = _neighborhoodController.text.trim();
         final city = _cityController.text.trim();
         final district = _districtController.text.trim();
         final postalCode = _postalCodeController.text.trim();
@@ -278,11 +282,12 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
           if (normalizedWebsite.isNotEmpty)
             'URL:${_escapeVCardValue(normalizedWebsite)}',
           if (street.isNotEmpty ||
+              neighborhood.isNotEmpty ||
               city.isNotEmpty ||
               district.isNotEmpty ||
               postalCode.isNotEmpty ||
               country.isNotEmpty)
-            'ADR;TYPE=WORK:;;${_escapeVCardValue(street)};${_escapeVCardValue(city)};${_escapeVCardValue(district)};${_escapeVCardValue(postalCode)};${_escapeVCardValue(country)}',
+            'ADR;TYPE=WORK:;${_escapeVCardValue(neighborhood)};${_escapeVCardValue(street)};${_escapeVCardValue(city)};${_escapeVCardValue(district)};${_escapeVCardValue(postalCode)};${_escapeVCardValue(country)}',
           'END:VCARD',
         ];
         return lines.join('\n');
@@ -411,7 +416,7 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
         child: ExpansionTile(
           initiallyExpanded: initiallyExpanded,
           tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           leading: CircleAvatar(
             backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.1),
             child: Icon(
@@ -992,6 +997,15 @@ class _GenerateDetailPageState extends State<GenerateDetailPage> {
                 controller: _streetController,
                 decoration: InputDecoration(
                   labelText: _requiredLabel('Cadde/Sokak', required: false),
+                ),
+                textInputAction: TextInputAction.next,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                key: const ValueKey('vcardNeighborhood'),
+                controller: _neighborhoodController,
+                decoration: InputDecoration(
+                  labelText: _requiredLabel('Mahalle', required: false),
                 ),
                 textInputAction: TextInputAction.next,
               ),

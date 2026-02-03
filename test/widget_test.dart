@@ -627,6 +627,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('vcardEmail')), 'ada@example.com');
     await tester.enterText(find.byKey(const ValueKey('vcardWebsite')), 'example.com');
     await tester.enterText(find.byKey(const ValueKey('vcardStreet')), 'Main St 12');
+    await tester.enterText(find.byKey(const ValueKey('vcardNeighborhood')), 'Moda');
     await tester.enterText(find.byKey(const ValueKey('vcardCity')), 'Istanbul');
     await tester.enterText(find.byKey(const ValueKey('vcardDistrict')), 'Kadikoy');
     await tester.enterText(find.byKey(const ValueKey('vcardPostalCode')), '34000');
@@ -651,7 +652,7 @@ void main() {
         'TEL;TYPE=FAX:+90 212 555 0000',
         'EMAIL:ada@example.com',
         'URL:https://example.com',
-        'ADR;TYPE=WORK:;;Main St 12;Istanbul;Kadikoy;34000;Turkey',
+        'ADR;TYPE=WORK:;Moda;Main St 12;Istanbul;Kadikoy;34000;Turkey',
         'END:VCARD',
       ].join('\n'),
     );

@@ -212,6 +212,10 @@ class QrAppController extends ChangeNotifier {
     );
   }
 
+  Future<AuthResult> signInWithGoogle() async {
+    return _authService.signInWithGoogle();
+  }
+
   Future<AuthResult> changePassword({
     required String currentPassword,
     required String newPassword,

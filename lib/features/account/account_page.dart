@@ -123,6 +123,26 @@ class _AccountPageState extends State<AccountPage> {
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    if (_isLoading.value) {
+      return;
+    }
+    final controller = QrControllerScope.of(context);
+    _isLoading.value = true;
+    final result = await controller.signInWithGoogle();
+    _isLoading.value = false;
+    if (!result.ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.message ?? 'Bilinmeyen hata.')),
+      );
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    controller.setTabIndex(0);
+  }
+
   Future<void> _copyEmail(String? email) async {
     if (email == null || email.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1106,6 +1126,45 @@ class _AccountPageState extends State<AccountPage> {
                                                 );
                                               },
                                             ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Divider(
+                                      color: colorScheme.outline.withOpacity(0.2),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: Text(
+                                      'veya',
+                                      style: theme.textTheme.labelMedium?.copyWith(
+                                        color: colorScheme.onSurface.withOpacity(0.6),
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Divider(
+                                      color: colorScheme.outline.withOpacity(0.2),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              ValueListenableBuilder<bool>(
+                                valueListenable: _isLoading,
+                                builder: (context, isLoading, _) {
+                                  return SizedBox(
+                                    width: double.infinity,
+                                    child: OutlinedButton.icon(
+                                      key: const ValueKey('authGoogle'),
+                                      onPressed: isLoading ? null : _handleGoogleSignIn,
+                                      icon: const Icon(Icons.g_mobiledata),
+                                      label: const Text('Google ile devam et'),
                                     ),
                                   );
                                 },

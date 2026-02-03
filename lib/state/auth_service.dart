@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthUser {
   const AuthUser({
@@ -37,6 +39,8 @@ abstract class AuthService {
     required String email,
     required String password,
   });
+
+  Future<AuthResult> signInWithGoogle();
 
   Future<AuthResult> changePassword({
     required String currentPassword,
@@ -100,6 +104,34 @@ class FirebaseAuthService implements AuthService {
       return AuthResult.error(error.message ?? 'Kayıt sırasında hata oluştu.');
     } catch (_) {
       return const AuthResult.error('Kayıt sırasında hata oluştu.');
+    }
+  }
+
+  @override
+  Future<AuthResult> signInWithGoogle() async {
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) {
+        return const AuthResult.error('Google giriş iptal edildi.');
+      }
+      final googleAuth = await googleUser.authentication;
+      if (googleAuth.accessToken == null && googleAuth.idToken == null) {
+        return const AuthResult.error('Google kimlik doğrulaması alınamadı.');
+      }
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await _auth.signInWithCredential(credential);
+      return const AuthResult.ok();
+    } on FirebaseAuthException catch (error) {
+      debugPrint('Google sign-in FirebaseAuthException: '
+          '${error.code} ${error.message}');
+      return AuthResult.error(error.message ?? 'Google ile giriş başarısız.');
+    } catch (error, stackTrace) {
+      debugPrint('Google sign-in error: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return const AuthResult.error('Google ile giriş başarısız.');
     }
   }
 
@@ -170,6 +202,9 @@ class FirebaseAuthService implements AuthService {
   @override
   Future<void> signOut() async {
     await _auth.signOut();
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {}
   }
 
   @override
@@ -214,6 +249,11 @@ class DisabledAuthService implements AuthService {
   }
 
   @override
+  Future<AuthResult> signInWithGoogle() async {
+    return const AuthResult.error('Firebase yapılandırılmadı.');
+  }
+
+  @override
   Future<AuthResult> changePassword({
     required String currentPassword,
     required String newPassword,
@@ -246,6 +286,7 @@ class FakeAuthService implements AuthService {
   final StreamController<AuthUser?> _controller =
       StreamController<AuthUser?>.broadcast();
   AuthUser? _user;
+  int googleSignInCount = 0;
 
   @override
   AuthUser? get currentUser => _user;
@@ -269,6 +310,14 @@ class FakeAuthService implements AuthService {
     required String password,
   }) async {
     _user = AuthUser(id: 'test-user', email: email, displayName: null);
+    _controller.add(_user);
+    return const AuthResult.ok();
+  }
+
+  @override
+  Future<AuthResult> signInWithGoogle() async {
+    googleSignInCount += 1;
+    _user = const AuthUser(id: 'google-user', email: null, displayName: 'Google');
     _controller.add(_user);
     return const AuthResult.ok();
   }

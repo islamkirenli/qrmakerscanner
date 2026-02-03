@@ -51,5 +51,16 @@
 	<string>QR görsellerini kaydetmek için galeri erişimi gerekir.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>QR görsellerini cihazına kaydetmek için izin gerekir.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.257776256265-d5b6gf6p48cafveo1j0rtbu2p7aov7sh</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

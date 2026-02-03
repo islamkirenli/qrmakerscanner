@@ -765,6 +765,25 @@ void main() {
     expect(find.text('user@example.com'), findsOneWidget);
   });
 
+  testWidgets('Google sign in button triggers auth flow',
+      (WidgetTester tester) async {
+    final auth = FakeAuthService();
+    await tester.pumpWidget(
+      QrApp(
+        isFirebaseReady: false,
+        authServiceOverride: auth,
+      ),
+    );
+
+    await tester.tap(find.text('Profil'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('authGoogle')));
+    await tester.pumpAndSettle();
+
+    expect(auth.googleSignInCount, 1);
+  });
+
   testWidgets('Text input shows character counter and enforces max length',
       (WidgetTester tester) async {
     await tester.pumpWidget(const QrApp(isFirebaseReady: false));
